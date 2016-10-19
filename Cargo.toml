@@ -2,5 +2,7 @@
 name = "cargo-travis"
 version = "0.0.0"
 authors = ["roblabla <robinlambertz+dev@gmail.com>"]
+description = "Run coverage, upload docs, and more on travis."
+license = "MIT"
 
 [dependencies]
