@@ -1,0 +1,6 @@
+[package]
+name = "cargo-travis"
+version = "0.0.0"
+authors = ["roblabla <robinlambertz+dev@gmail.com>"]
+
+[dependencies]
