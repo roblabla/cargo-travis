@@ -6,3 +6,6 @@ description = "Run coverage, upload docs, and more on travis."
 license = "MIT"
 
 [dependencies]
+
+cargo = "0.13.0"
+rustc-serialize = "0.3"
