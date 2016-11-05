@@ -4,7 +4,7 @@ Record total test coverage across in-crate and external tests, and upload to [co
 
 The goal is to eventually have feature parity with the assumed-dead [travis-cargo](https://github.com/huonw/travis-cargo)
 
-To avoid problems like [this one](https://github.com/huonw/travis-cargo/pull/55), we link against the cargo crate directly and use its low-level operations. This should be much more reliable than the stdout capture approach. On the other hand, the cargo crate isn't stable, leading to things like [this](https://github.com/roblabla/cargo-travis).
+To avoid problems like [this one](https://github.com/huonw/travis-cargo/pull/55), we link against the cargo crate directly and use its low-level operations. This should be much more reliable than the stdout capture approach. On the other hand, the cargo crate isn't stable, leading to things like [this](https://github.com/roblabla/cargo-travis/issues/1).
 
 ## Installation
 
@@ -54,12 +54,7 @@ script:
       cargo test &&
       cargo bench &&
       cargo --only stable doc
-
-after_success:
-  # measure code coverage and upload to coveralls.io (the verify
-  # argument mitigates kcov crashes due to malformed debuginfo, at the
-  # cost of some speed <https://github.com/huonw/travis-cargo/issues/12>)
-  - cargo coveralls
+after_success: # measure code coverage and upload to coveralls.io (the verify # argument mitigates kcov crashes due to malformed debuginfo, at the # cost of some speed <https://github.com/huonw/travis-cargo/issues/12>) - cargo coveralls
 ```
 
 ## Help
