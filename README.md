@@ -28,6 +28,9 @@ addons:
       - libelf-dev
       - libdw-dev
       - binutils-dev
+      - cmake
+    sources:
+      - kalakris-cmake
 
 # run builds for all the trains (and more)
 rust:
@@ -56,7 +59,7 @@ after_success:
   # measure code coverage and upload to coveralls.io (the verify
   # argument mitigates kcov crashes due to malformed debuginfo, at the
   # cost of some speed <https://github.com/huonw/travis-cargo/issues/12>)
-  - cargo coveralls verify
+  - cargo coveralls
 ```
 
 ## Help
