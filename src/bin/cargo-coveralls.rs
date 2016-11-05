@@ -3,7 +3,7 @@ extern crate cargo_travis;
 extern crate rustc_serialize;
 
 use std::path::Path;
-use cargo_travis::{CoverageOptions};
+use cargo_travis::{CoverageOptions, build_kcov};
 use cargo::core::{Workspace};
 use cargo::util::{Config, CliResult, human, Human, CliError};
 use cargo::{execute_main_without_stdin};
@@ -58,6 +58,7 @@ pub struct Options {
 }
 
 fn execute(options: Options, config: &Config) -> CliResult<Option<()>> {
+    let kcov_path = build_kcov();
     // TODO: build_kcov() - Might be a good idea to consider linking kcov as a
     // lib instead ?
     try!(config.configure(options.flag_verbose,
@@ -86,6 +87,7 @@ fn execute(options: Options, config: &Config) -> CliResult<Option<()>> {
     let ops = CoverageOptions {
         merge_dir: Path::new("target/kcov"),
         merge_args: vec!["--coveralls-id".into(), job_id],
+        kcov_path: &kcov_path,
         compile_opts: cargo::ops::CompileOptions {
             config: config,
             jobs: options.flag_jobs,

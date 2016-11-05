@@ -14,6 +14,10 @@ stdenv.mkDerivation rec {
     openssl
     pkgconfig
     curl
+    wget
+    unzip
+    elfutils
+    python
   ];
 
   LIBGIT2_SYS_USE_PKG_CONFIG=1;
