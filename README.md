@@ -54,7 +54,9 @@ script:
       cargo test &&
       cargo bench &&
       cargo --only stable doc
-after_success: # measure code coverage and upload to coveralls.io (the verify # argument mitigates kcov crashes due to malformed debuginfo, at the # cost of some speed <https://github.com/huonw/travis-cargo/issues/12>) - cargo coveralls
+after_success:
+# measure code coverage and upload to coveralls.io
+  - cargo coveralls
 ```
 
 ## Help
