@@ -41,7 +41,7 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
         let mut cmd = try!(compilation.target_process(options.kcov_path, pkg));
         // TODO: Make all that more configurable
         //TODO: The unwraps shouldn't cause problems... right ?
-        let target = "target/kcov-".to_string() + to_display.file_name().unwrap().to_str().unwrap();
+        let target = ws.target_dir().join("kcov-".to_string() + to_display.file_name().unwrap().to_str().unwrap()).into_path_unlocked();
         let mut args : Vec<&std::ffi::OsStr> = vec!["--verify".as_ref(), "--exclude-pattern=/.cargo".as_ref(), target.as_ref()];
         args.push(exe.as_os_str());
         let w : Vec<&std::ffi::OsStr> = v.iter().map(|v| v.as_os_str()).collect();
@@ -63,7 +63,7 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
     let mut mergeargs : Vec<OsString> = vec!["--merge".to_string().into(), options.merge_dir.as_os_str().to_os_string()];
     mergeargs.extend(options.merge_args.iter().cloned());
     mergeargs.extend(compilation.tests.iter().map(|&(_, _, ref exe)|
-        ("target/kcov-".to_string() + exe.file_name().unwrap().to_str().unwrap()).into()
+        ws.target_dir().join("kcov-".to_string() + exe.file_name().unwrap().to_str().unwrap()).into_path_unlocked().into()
     ));
     let mut cmd = process(options.kcov_path.as_os_str().to_os_string());
     cmd.args(&mergeargs);
