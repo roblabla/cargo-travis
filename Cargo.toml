@@ -13,5 +13,5 @@ keywords = ["cargo", "cargo-subcommand", "travis", "coverage", "coveralls"]
 
 [dependencies]
 
-cargo = "0.13.0"
+cargo = "0.16.0"
 rustc-serialize = "0.3"

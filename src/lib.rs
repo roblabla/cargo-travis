@@ -4,8 +4,9 @@ use std::path::{Path, PathBuf};
 use std::process::{self, Command};
 use std::ffi::{OsString};
 use cargo::core::{Workspace};
-use cargo::ops::{CompileOptions, ExecEngine, ProcessEngine, CommandType, CommandPrototype};
+use cargo::ops::{CompileOptions};
 use cargo::util::{CargoTestError};
+use cargo::util::process;
 use cargo::{CargoResult};
 
 pub struct CoverageOptions<'a> {
@@ -53,7 +54,7 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
             shell.status("Running", cmd.to_string())
         }));
 
-        if let Err(e) = ExecEngine::exec(&ProcessEngine, cmd) {
+        if let Err(e) = cmd.exec() {
             errors.push(e);
         }
     }
@@ -64,7 +65,7 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
     mergeargs.extend(compilation.tests.iter().map(|&(_, _, ref exe)|
         ("target/kcov-".to_string() + exe.file_name().unwrap().to_str().unwrap()).into()
     ));
-    let mut cmd = try!(CommandPrototype::new(CommandType::Target(options.kcov_path.as_os_str().to_os_string()), options.compile_opts.config));
+    let mut cmd = process(options.kcov_path.as_os_str().to_os_string());
     cmd.args(&mergeargs);
     try!(config.shell().concise(|shell| {
         shell.status("Merging coverage", options.merge_dir.display().to_string())
@@ -72,7 +73,7 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
     try!(config.shell().verbose(|shell| {
         shell.status("Merging coverage", cmd.to_string())
     }));
-    try!(ExecEngine::exec(&ProcessEngine, cmd));
+    try!(cmd.exec());
     if errors.is_empty() {
         Ok(None)
     } else {

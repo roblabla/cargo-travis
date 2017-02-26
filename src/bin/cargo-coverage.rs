@@ -6,6 +6,7 @@ use std::path::Path;
 use cargo_travis::{CoverageOptions, build_kcov};
 use cargo::core::{Workspace};
 use cargo::util::{Config, CliResult, human, Human, CliError};
+use cargo::ops::{Packages, MessageFormat};
 use cargo::{execute_main_without_stdin};
 
 pub const USAGE: &'static str = "
@@ -24,6 +25,7 @@ Test Options:
     --bin NAME                   Test only the specified binary
     --test NAME                  Test only the specified integration test target
     -p SPEC, --package SPEC ...  Package to run tests for
+    --all                        Test all packages in the workspace
     -j N, --jobs N               Number of parallel jobs, defaults to # of CPUs
     --release                    Build artifacts in release mode, with optimizations
     --features FEATURES          Space-separated list of features to also build
@@ -43,11 +45,13 @@ Test Options:
 #[derive(RustcDecodable)]
 pub struct Options {
     arg_args: Vec<String>,
+    flag_all_features: bool,
     flag_merge_into: String,
     flag_features: Vec<String>,
     flag_jobs: Option<u32>,
     flag_manifest_path: Option<String>,
     flag_no_default_features: bool,
+    flag_all: bool,
     flag_package: Vec<String>,
     flag_target: Option<String>,
     flag_lib: bool,
@@ -72,6 +76,12 @@ fn execute(options: Options, config: &Config) -> CliResult<Option<()>> {
 
     let root = try!(cargo::util::important_paths::find_root_manifest_for_wd(options.flag_manifest_path, config.cwd()));
 
+    let spec = if options.flag_all {
+        Packages::All
+    } else {
+        Packages::Packages(&options.flag_package)
+    };
+
     let empty = vec![];
     let (mode, filter) = (cargo::ops::CompileMode::Test, cargo::ops::CompileFilter::new(
         options.flag_lib,
@@ -90,10 +100,11 @@ fn execute(options: Options, config: &Config) -> CliResult<Option<()>> {
             config: config,
             jobs: options.flag_jobs,
             target: options.flag_target.as_ref().map(|s| &s[..]), // TODO: Force compilation target == host, kcov
+            message_format: MessageFormat::Human, // TODO: Allow to change this
+            all_features: options.flag_all_features,
             features: &options.flag_features,
             no_default_features: options.flag_no_default_features,
-            spec: &options.flag_package,
-            exec_engine: None,
+            spec: spec,
             release: options.flag_release,
             mode: mode,
             filter: filter,
