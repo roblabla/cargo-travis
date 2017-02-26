@@ -1,5 +1,6 @@
 sudo: false
 language: rust
+cache: cargo
 # Dependencies of kcov, used by coverage
 addons:
   apt:
