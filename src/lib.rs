@@ -42,7 +42,8 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
         // TODO: Make all that more configurable
         //TODO: The unwraps shouldn't cause problems... right ?
         let target = ws.target_dir().join("kcov-".to_string() + to_display.file_name().unwrap().to_str().unwrap()).into_path_unlocked();
-        let mut args : Vec<&std::ffi::OsStr> = vec!["--verify".as_ref(), "--exclude-pattern=/.cargo".as_ref(), target.as_ref()];
+        let default_include_path = format!("--include-path={}", ws.root().display());
+        let mut args : Vec<&std::ffi::OsStr> = vec!["--verify".as_ref(), default_include_path.as_ref(), target.as_ref()];
         args.push(exe.as_os_str());
         let w : Vec<&std::ffi::OsStr> = v.iter().map(|v| v.as_os_str()).collect();
         args.extend(w);
