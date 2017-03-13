@@ -91,8 +91,8 @@ fn execute(options: Options, config: &Config) -> CliResult<Option<()>> {
     // TODO: It'd be nice if there was a flag in compile_opts for this.
     std::env::set_var("RUSTFLAGS", "-C link-dead-code");
 
-    //TODO: match it here, error out in case of failure
-    let job_id = std::env::var_os("TRAVIS_JOB_ID").unwrap();
+    let job_id = std::env::var_os("TRAVIS_JOB_ID")
+        .expect("Environment variable TRAVIS_JOB_ID not found. This should be run from Travis");
 
     let ops = CoverageOptions {
         merge_dir: Path::new("target/kcov"),
