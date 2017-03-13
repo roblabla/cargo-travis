@@ -13,7 +13,8 @@ pub struct CoverageOptions<'a> {
     pub compile_opts: CompileOptions<'a>,
     pub merge_dir: &'a Path,
     pub kcov_path: &'a Path,
-    pub merge_args: Vec<OsString> // TODO: Or &[str] ?
+    pub merge_args: Vec<OsString>, // TODO: Or &[str] ?
+    pub exclude_pattern: Option<String>
 }
 
 pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[String]) -> CargoResult<Option<CargoTestError>> {
@@ -43,10 +44,21 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
         //TODO: The unwraps shouldn't cause problems... right ?
         let target = ws.target_dir().join("kcov-".to_string() + to_display.file_name().unwrap().to_str().unwrap()).into_path_unlocked();
         let default_include_path = format!("--include-path={}", ws.root().display());
-        let mut args : Vec<&std::ffi::OsStr> = vec!["--verify".as_ref(), default_include_path.as_ref(), target.as_ref()];
-        args.push(exe.as_os_str());
-        let w : Vec<&std::ffi::OsStr> = v.iter().map(|v| v.as_os_str()).collect();
-        args.extend(w);
+
+        let mut args = vec![
+            OsString::from("--verify"),
+            OsString::from(default_include_path), 
+            OsString::from(target)];
+
+        // add exclude path
+        if let Some(ref exclude) = options.exclude_pattern {
+            let exclude_option = OsString::from(format!("--exclude-pattern={}", exclude));
+            args.push(exclude_option);
+        }
+
+        args.push(OsString::from(exe));
+
+        args.extend(v.clone());
         cmd.args(&args);
         try!(config.shell().concise(|shell| {
             shell.status("Running", to_display.display().to_string())

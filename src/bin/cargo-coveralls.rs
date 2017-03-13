@@ -30,6 +30,7 @@ Test Options:
     --no-default-features        Do not build the `default` feature
     --target TRIPLE              Build for the target triple
     --manifest-path PATH         Path to the manifest to build tests for
+    --exclude-pattern PATTERN    Comma-separated  path patterns to exclude from the report
     -v, --verbose ...            Use verbose output
     -q, --quiet                  No output printed to stdout
     --color WHEN                 Coloring: auto, always, never
@@ -46,6 +47,7 @@ pub struct Options {
     flag_features: Vec<String>,
     flag_jobs: Option<u32>,
     flag_manifest_path: Option<String>,
+    flag_exclude_pattern: Option<String>,
     flag_no_default_features: bool,
     flag_all: bool,
     flag_package: Vec<String>,
@@ -97,6 +99,7 @@ fn execute(options: Options, config: &Config) -> CliResult<Option<()>> {
     let ops = CoverageOptions {
         merge_dir: Path::new("target/kcov"),
         merge_args: vec!["--coveralls-id".into(), job_id],
+        exclude_pattern: options.flag_exclude_pattern,
         kcov_path: &kcov_path,
         compile_opts: cargo::ops::CompileOptions {
             config: config,
