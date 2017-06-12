@@ -5,7 +5,7 @@ use std::process::{self, Command};
 use std::ffi::{OsString};
 use cargo::core::{Workspace};
 use cargo::ops::{CompileOptions};
-use cargo::util::{CargoTestError};
+use cargo::util::{CargoTestError, Test};
 use cargo::util::process;
 use cargo::{CargoResult};
 
@@ -31,7 +31,7 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
 
     //let x = &compilation.tests.map(run_single_coverage);
 
-    for &(ref pkg, _, ref exe) in &compilation.tests {
+    for &(ref pkg, _, _, ref exe) in &compilation.tests {
         let to_display = match cargo::util::without_prefix(exe, &cwd) {
             Some(path) => path,
             None => &**exe
@@ -63,7 +63,7 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
     // Let the user pass mergeargs
     let mut mergeargs : Vec<OsString> = vec!["--merge".to_string().into(), options.merge_dir.as_os_str().to_os_string()];
     mergeargs.extend(options.merge_args.iter().cloned());
-    mergeargs.extend(compilation.tests.iter().map(|&(_, _, ref exe)|
+    mergeargs.extend(compilation.tests.iter().map(|&(_, _, _, ref exe)|
         ws.target_dir().join("kcov-".to_string() + exe.file_name().unwrap().to_str().unwrap()).into_path_unlocked().into()
     ));
     let mut cmd = process(options.kcov_path.as_os_str().to_os_string());
@@ -78,7 +78,7 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
     if errors.is_empty() {
         Ok(None)
     } else {
-        Ok(Some(CargoTestError::new(errors)))
+        Ok(Some(CargoTestError::new(Test::Multiple, errors)))
     }
 }
 
