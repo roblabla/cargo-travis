@@ -4,10 +4,10 @@ extern crate rustc_serialize;
 
 use std::path::Path;
 use cargo_travis::{CoverageOptions, build_kcov};
-use cargo::core::{Workspace};
+use cargo::core::Workspace;
 use cargo::util::{Config, CliResult, human, Human, CliError};
 use cargo::ops::{Packages, MessageFormat};
-use cargo::{execute_main_without_stdin};
+use cargo::execute_main_without_stdin;
 
 pub const USAGE: &'static str = "
 Record coverage of `cargo test`, this runs all binaries that `cargo test` runs
@@ -74,7 +74,9 @@ fn execute(options: Options, config: &Config) -> CliResult<Option<()>> {
                           options.flag_frozen,
                           options.flag_locked));
 
-    let root = try!(cargo::util::important_paths::find_root_manifest_for_wd(options.flag_manifest_path, config.cwd()));
+    let root =
+        try!(cargo::util::important_paths::find_root_manifest_for_wd(options.flag_manifest_path,
+                                                                     config.cwd()));
 
     let spec = if options.flag_all {
         Packages::All
@@ -83,12 +85,12 @@ fn execute(options: Options, config: &Config) -> CliResult<Option<()>> {
     };
 
     let empty = vec![];
-    let (mode, filter) = (cargo::ops::CompileMode::Test, cargo::ops::CompileFilter::new(
-        options.flag_lib,
-        &options.flag_bin,
-        &options.flag_test,
-        &empty,
-        &empty));
+    let (mode, filter) = (cargo::ops::CompileMode::Test,
+                          cargo::ops::CompileFilter::new(options.flag_lib,
+                                                         &options.flag_bin,
+                                                         &options.flag_test,
+                                                         &empty,
+                                                         &empty));
 
     // TODO: Shouldn't this be in run_coverage ?
     std::env::set_var("RUSTFLAGS", "-C link-dead-code");
@@ -109,7 +111,7 @@ fn execute(options: Options, config: &Config) -> CliResult<Option<()>> {
             mode: mode,
             filter: filter,
             target_rustdoc_args: None,
-            target_rustc_args: None
+            target_rustc_args: None,
         },
     };
 
@@ -121,9 +123,9 @@ fn execute(options: Options, config: &Config) -> CliResult<Option<()>> {
         None => Ok(None),
         Some(err) => {
             Err(match err.exit.as_ref().and_then(|e| e.code()) {
-                Some(i) => CliError::new(human("test failed"), i),
-                None => CliError::new(Box::new(Human(err)), 101)
-            })
+                    Some(i) => CliError::new(human("test failed"), i),
+                    None => CliError::new(Box::new(Human(err)), 101),
+                })
         }
     }
 }
