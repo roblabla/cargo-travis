@@ -3,11 +3,12 @@ extern crate cargo_travis;
 extern crate rustc_serialize;
 
 use std::path::Path;
+use std::env;
 use cargo_travis::{CoverageOptions, build_kcov};
-use cargo::core::{Workspace};
+use cargo::core::Workspace;
 use cargo::util::{Config, CliResult, human, Human, CliError};
 use cargo::ops::{Packages, MessageFormat};
-use cargo::{execute_main_without_stdin};
+use cargo::core::shell::{Verbosity, ColorConfig};
 
 pub const USAGE: &'static str = "
 Record coverage of `cargo test`, this runs all binaries that `cargo test` runs
@@ -61,7 +62,7 @@ pub struct Options {
     flag_locked: bool,
 }
 
-fn execute(options: Options, config: &Config) -> CliResult<Option<()>> {
+fn execute(options: Options, config: &Config) -> CliResult {
     let kcov_path = build_kcov();
     // TODO: build_kcov() - Might be a good idea to consider linking kcov as a
     // lib instead ?
@@ -71,7 +72,8 @@ fn execute(options: Options, config: &Config) -> CliResult<Option<()>> {
                           options.flag_frozen,
                           options.flag_locked));
 
-    let root = try!(cargo::util::important_paths::find_root_manifest_for_wd(options.flag_manifest_path, config.cwd()));
+    let root = try!(cargo::util::important_paths::find_root_manifest_for_wd(options.flag_manifest_path,
+                                                                     config.cwd()));
 
     let spec = if options.flag_all {
         Packages::All
@@ -80,12 +82,12 @@ fn execute(options: Options, config: &Config) -> CliResult<Option<()>> {
     };
 
     let empty = vec![];
-    let (mode, filter) = (cargo::ops::CompileMode::Test, cargo::ops::CompileFilter::new(
-        options.flag_lib,
-        &options.flag_bin,
-        &options.flag_test,
-        &empty,
-        &empty));
+    let (mode, filter) = (cargo::ops::CompileMode::Test,
+                          cargo::ops::CompileFilter::new(options.flag_lib,
+                                                         &options.flag_bin,
+                                                         &options.flag_test,
+                                                         &empty,
+                                                         &empty));
 
     // TODO: Shouldn't this be in run_coverage ?
     // TODO: It'd be nice if there was a flag in compile_opts for this.
@@ -111,7 +113,7 @@ fn execute(options: Options, config: &Config) -> CliResult<Option<()>> {
             mode: mode,
             filter: filter,
             target_rustdoc_args: None,
-            target_rustc_args: None
+            target_rustc_args: None,
         },
     };
 
@@ -120,16 +122,38 @@ fn execute(options: Options, config: &Config) -> CliResult<Option<()>> {
     let err = try!(cargo_travis::run_coverage(&ws, &ops, &options.arg_args));
 
     match err {
-        None => Ok(None),
+        None => Ok(()),
         Some(err) => {
             Err(match err.exit.as_ref().and_then(|e| e.code()) {
-                Some(i) => CliError::new(human("test failed"), i),
-                None => CliError::new(Box::new(Human(err)), 101)
-            })
+                    Some(i) => CliError::new(human("test failed"), i),
+                    None => CliError::new(Box::new(Human(err)), 101),
+                })
         }
     }
 }
 
 fn main() {
-    execute_main_without_stdin(execute, false, USAGE);
+    let config = match Config::default() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            let mut shell = cargo::shell(Verbosity::Verbose, ColorConfig::Auto);
+            cargo::exit_with_error(e.into(), &mut shell)
+        }
+    };
+
+    let result =
+        (|| {
+            let args: Vec<_> = try!(env::args_os().map(|s| {
+                                    s.into_string().map_err(|s| {
+                                                        human(format!("invalid unicode in argument: {:?}", s))
+                                                                        })
+                                            }).collect());
+            let rest = &args;
+            cargo::call_main_without_stdin(execute, &config, USAGE, rest, false)
+        })();
+
+    match result {
+        Err(e) => cargo::exit_with_error(e, &mut *config.shell()),
+        Ok(()) => {}
+    }
 }
