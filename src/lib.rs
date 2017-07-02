@@ -5,7 +5,7 @@ use std::process::{self, Command};
 use std::ffi::OsString;
 use cargo::core::Workspace;
 use cargo::ops::CompileOptions;
-use cargo::util::CargoTestError;
+use cargo::util::{CargoTestError, Test};
 use cargo::util::process;
 use cargo::CargoResult;
 
@@ -38,7 +38,7 @@ pub fn run_coverage(ws: &Workspace,
 
     //let x = &compilation.tests.map(run_single_coverage);
 
-    for &(ref pkg, _, ref exe) in &compilation.tests {
+    for &(ref pkg, _, _, ref exe) in &compilation.tests {
         let to_display = match cargo::util::without_prefix(exe, &cwd) {
             Some(path) => path,
             None => &**exe,
@@ -78,7 +78,7 @@ pub fn run_coverage(ws: &Workspace,
     mergeargs.extend(compilation
                          .tests
                          .iter()
-                         .map(|&(_, _, ref exe)| {
+                         .map(|&(_, _, _, ref exe)| {
                                   ws.target_dir()
                                       .join("kcov-".to_string() +
                                             exe.file_name().unwrap().to_str().unwrap())
@@ -99,7 +99,7 @@ pub fn run_coverage(ws: &Workspace,
     if errors.is_empty() {
         Ok(None)
     } else {
-        Ok(Some(CargoTestError::new(errors)))
+        Ok(Some(CargoTestError::new(Test::Multiple, errors)))
     }
 }
 
