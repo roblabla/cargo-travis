@@ -53,7 +53,8 @@ script:
       cargo build &&
       cargo test &&
       cargo bench &&
-      cargo --only stable doc
+      cargo doc
+
 after_success:
 # measure code coverage and upload to coveralls.io
   - cargo coveralls
