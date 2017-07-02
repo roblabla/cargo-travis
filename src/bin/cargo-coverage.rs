@@ -1,13 +1,15 @@
 extern crate cargo;
 extern crate cargo_travis;
+extern crate env_logger;
 extern crate rustc_serialize;
 
+use std::env;
 use std::path::Path;
 use cargo_travis::{CoverageOptions, build_kcov};
 use cargo::core::{Workspace};
 use cargo::util::{Config, CliResult, human, Human, CliError};
 use cargo::ops::{Packages, MessageFormat};
-use cargo::{execute_main_without_stdin};
+use cargo::{call_main_without_stdin, exit_with_error};
 
 pub const USAGE: &'static str = "
 Record coverage of `cargo test`, this runs all binaries that `cargo test` runs
@@ -67,7 +69,7 @@ pub struct Options {
     flag_locked: bool,
 }
 
-fn execute(options: Options, config: &Config) -> CliResult<Option<()>> {
+fn execute(options: Options, config: &Config) -> CliResult {
     let kcov_path = build_kcov();
     // lib instead ?
     try!(config.configure(options.flag_verbose,
@@ -121,7 +123,7 @@ fn execute(options: Options, config: &Config) -> CliResult<Option<()>> {
     let err = try!(cargo_travis::run_coverage(&ws, &ops, &options.arg_args));
 
     match err {
-        None => Ok(None),
+        None => Ok(()),
         Some(err) => {
             Err(match err.exit.as_ref().and_then(|e| e.code()) {
                 Some(i) => CliError::new(human("test failed"), i),
@@ -132,5 +134,11 @@ fn execute(options: Options, config: &Config) -> CliResult<Option<()>> {
 }
 
 fn main() {
-    execute_main_without_stdin(execute, false, USAGE);
+    env_logger::init().unwrap();
+    let config = Config::default().unwrap();
+    let args = env::args().collect::<Vec<_>>();
+    let result = call_main_without_stdin(execute, &config, USAGE, &args, false);
+    if let Err(e) = result {
+        exit_with_error(e, &mut *config.shell());
+    }
 }
