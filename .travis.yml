@@ -30,7 +30,7 @@ script:
       cargo build &&
       cargo test &&
       cargo bench &&
-      cargo stable doc
+      cargo doc
 after_success:
 # measure code coverage and upload to coveralls.io
   - cargo coveralls
