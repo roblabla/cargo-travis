@@ -1,13 +1,14 @@
 extern crate cargo;
 extern crate cargo_travis;
 extern crate env_logger;
-extern crate rustc_serialize;
+#[macro_use]
+extern crate serde_derive;
 
 use std::env;
 use std::path::Path;
 use cargo_travis::{CoverageOptions, build_kcov};
 use cargo::core::{Workspace};
-use cargo::util::{Config, CliResult, human, Human, CliError};
+use cargo::util::{Config, CliResult, CargoErrorKind, CliError};
 use cargo::ops::{Packages, MessageFormat};
 use cargo::{call_main_without_stdin, exit_with_error};
 
@@ -22,7 +23,9 @@ Test Options:
     -h, --help                   Print this message
     --lib                        Test only this package's library
     --bin NAME                   Test only the specified binary
+    --bins                       Test all binaries
     --test NAME                  Test only the specified integration test target
+    --tests                      Test all tests
     -p SPEC, --package SPEC ...  Package to run tests for
     --all                        Test all packages in the workspace
     -j N, --jobs N               Number of parallel jobs, defaults to # of CPUs
@@ -42,7 +45,7 @@ Test Options:
 ";
 
 
-#[derive(RustcDecodable)]
+#[derive(Deserialize)]
 pub struct Options {
     arg_args: Vec<String>,
     flag_all_features: bool,
@@ -56,10 +59,13 @@ pub struct Options {
     flag_target: Option<String>,
     flag_lib: bool,
     flag_bin: Vec<String>,
+    flag_bins: bool,
     flag_test: Vec<String>,
+    flag_tests: bool,
     flag_verbose: u32,
     flag_quiet: Option<bool>,
     flag_color: Option<String>,
+    flag_no_fail_fast: bool,
     flag_release: bool,
     flag_frozen: bool,
     flag_locked: bool,
@@ -87,9 +93,14 @@ fn execute(options: Options, config: &Config) -> CliResult {
     let (mode, filter) = (cargo::ops::CompileMode::Test, cargo::ops::CompileFilter::new(
         options.flag_lib,
         &options.flag_bin,
+        options.flag_bins,
         &options.flag_test,
+        options.flag_tests,
         &empty,
-        &empty));
+        false,
+        &empty,
+        false,
+    ));
 
     // TODO: Shouldn't this be in run_coverage ?
     // TODO: It'd be nice if there was a flag in compile_opts for this.
@@ -101,6 +112,7 @@ fn execute(options: Options, config: &Config) -> CliResult {
     let ops = CoverageOptions {
         merge_dir: Path::new("target/kcov"),
         merge_args: vec!["--coveralls-id".into(), job_id],
+        no_fail_fast: options.flag_no_fail_fast,
         exclude_pattern: options.flag_exclude_pattern,
         kcov_path: &kcov_path,
         compile_opts: cargo::ops::CompileOptions {
@@ -128,8 +140,8 @@ fn execute(options: Options, config: &Config) -> CliResult {
         None => Ok(()),
         Some(err) => {
             Err(match err.exit.as_ref().and_then(|e| e.code()) {
-                Some(i) => CliError::new(human("test failed"), i),
-                None => CliError::new(Box::new(Human(err)), 101)
+                Some(i) => CliError::new("test failed".into(), i),
+                None => CliError::new(CargoErrorKind::CargoTestErrorKind(err).into(), 101)
             })
         }
     }
