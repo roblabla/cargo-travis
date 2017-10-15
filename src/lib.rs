@@ -5,13 +5,14 @@ use std::process::{self, Command};
 use std::ffi::{OsString};
 use cargo::core::{Workspace};
 use cargo::ops::{CompileOptions};
-use cargo::util::{CargoTestError, Test};
+use cargo::util::{CargoError, CargoErrorKind, CargoTestError, Test};
 use cargo::util::process;
 use cargo::{CargoResult};
 
 pub struct CoverageOptions<'a> {
     pub compile_opts: CompileOptions<'a>,
     pub merge_dir: &'a Path,
+    pub no_fail_fast: bool,
     pub kcov_path: &'a Path,
     pub merge_args: Vec<OsString>, // TODO: Or &[str] ?
     pub exclude_pattern: Option<String>
@@ -32,7 +33,7 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
 
     //let x = &compilation.tests.map(run_single_coverage);
 
-    for &(ref pkg, _, _, ref exe) in &compilation.tests {
+    for &(ref pkg, ref kind, ref test, ref exe) in &compilation.tests {
         let to_display = match cargo::util::without_prefix(exe, &cwd) {
             Some(path) => path,
             None => &**exe
@@ -67,8 +68,20 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
             shell.status("Running", cmd.to_string())
         }));
 
-        if let Err(e) = cmd.exec() {
-            errors.push(e);
+        let result = cmd.exec();
+
+        match result {
+            Err(CargoError(CargoErrorKind::ProcessErrorKind(e), .. )) => {
+                 errors.push(e);
+                if !options.no_fail_fast {
+                    return Ok(Some(CargoTestError::new(Test::UnitTest(kind.clone(), test.clone()), errors)))
+                }
+            }
+            Err(e) => {
+                //This is an unexpected Cargo error rather than a test failure
+                return Err(e)
+            }
+            Ok(()) => {}
         }
     }
 
