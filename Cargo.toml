@@ -12,7 +12,8 @@ keywords = ["cargo", "cargo-subcommand", "travis", "coverage", "coveralls"]
 
 
 [dependencies]
-cargo = "0.21.0"
+cargo = "0.22"
 env_logger = "0.4"
+log = "0.3"
 serde = "1.0"
 serde_derive = "1.0"
