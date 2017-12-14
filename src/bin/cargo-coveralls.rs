@@ -21,6 +21,7 @@ Usage:
     cargo coveralls [options] [--] [<args>...]
 
 Coveralls Options:
+    -V, --version                Print version info and exit
     --exclude-pattern PATTERN    Comma-separated  path patterns to exclude from the report
 
 Test Options:
@@ -56,6 +57,7 @@ Test Options:
 #[derive(Deserialize)]
 pub struct Options {
     arg_args: Vec<String>,
+    flag_version: bool,
     flag_features: Vec<String>,
     flag_all_features: bool,
     flag_jobs: Option<u32>,
@@ -90,6 +92,11 @@ pub struct Options {
 fn execute(options: Options, config: &Config) -> CliResult {
     debug!("executing; cmd=cargo-coveralls; args={:?}",
            env::args().collect::<Vec<_>>());
+
+    if options.flag_version {
+        println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
 
     let kcov_path = build_kcov();
     // TODO: build_kcov() - Might be a good idea to consider linking kcov as a
