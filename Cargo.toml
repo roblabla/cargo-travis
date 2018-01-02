@@ -17,3 +17,6 @@ env_logger = "0.4"
 log = "0.3"
 serde = "1.0"
 serde_derive = "1.0"
+
+# Temporary band-aid
+docopt = "=0.8.1"
