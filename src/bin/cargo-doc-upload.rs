@@ -87,13 +87,13 @@ fn main() {
         }
     };
     let result = (|| {
-        let args: Vec<String> = env::args_os()
+        let args: Vec<String> = try!(env::args_os()
             .map(|s| {
                 s.into_string().map_err(|s| {
                     CargoError::from(format!("invalid unicode in argument: {:?}", s))
                 })
             })
-            .collect()?;
+            .collect());
         let rest = &args;
         cargo::call_main_without_stdin(execute, &config, USAGE, rest, false)
     })();
