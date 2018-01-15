@@ -61,12 +61,14 @@ fn execute(options: Options, _: &Config) -> CliResult {
         return Ok(());
     }
 
-    // FEAT: Allow passing origin string
+    // TODO FEAT: Allow passing origin string
     let token = options.flag_token.or(env::var("GH_TOKEN").ok());
     let slug = env::var("TRAVIS_REPO_SLUG").expect("$TRAVIS_REPO_SLUG not set");
     let origin = if let Some(token) = token {
         format!("https://{}@github.com/{}.git", token, slug)
     } else {
+        eprintln!("GitHub Personal Access Token was not provided in $GH_TOKEN or --token");
+        eprintln!("Falling back to using the SSH endpoint");
         format!("git@github.com:{}.git", slug)
     };
 

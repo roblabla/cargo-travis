@@ -172,6 +172,8 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) {
 
     let doc_upload = path::Path::new("target/doc-upload");
     if !doc_upload.exists() {
+        // If the folder doesn't exist, clone it from remote
+        // ASSUME: if target/doc-upload exists, it's ours
         let status = Command::new("git")
             .arg("clone")
             .arg("--verbose")
@@ -182,6 +184,8 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) {
             .status()
             .unwrap();
         if !status.success() {
+            // If clone fails, that means that the remote doesn't exist
+            // So we create a new repository for the documentation branch
             require_success(
                 Command::new("git")
                     .arg("init")
@@ -201,9 +205,11 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) {
     }
 
     let doc_upload_branch = doc_upload.join(branch);
-    fs::create_dir(&doc_upload_branch).ok();
+    fs::create_dir(&doc_upload_branch).ok(); // Create dir if not exists
     for entry in doc_upload_branch.read_dir().unwrap() {
         let dir = entry.unwrap();
+        // Delete all files in directory, as we'll be copying in everything
+        // Ignore index.html (at root) so a redirect page can be manually added
         if dir.file_name() != OsString::from("index.html") {
             let path = dir.path();
             println!("rm -r {}", path.to_string_lossy());
@@ -220,6 +226,8 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) {
         doc_upload_branch,
         &fs_extra::dir::CopyOptions::new(),
         |info| {
+            // Some documentation can be very large, especially with a large number of dependencies
+            // Don't go silent during copy, give updates every MiB processed
             if info.copied_bytes >> 20 > last_progress {
                 last_progress = info.copied_bytes >> 20;
                 println!("{}/{} MiB", info.copied_bytes >> 20, info.total_bytes >> 20);
@@ -228,6 +236,8 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) {
         }
     ).unwrap();
 
+    // Tell git to track all of the files we copied over
+    // Also tracks deletions of files if things changed
     require_success(
         Command::new("git")
             .current_dir(doc_upload)
@@ -238,6 +248,8 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) {
             .unwrap()
     );
 
+    // Save the changes
+    // No-op if no changes were made
     require_success(
         Command::new("git")
             .current_dir(doc_upload)
@@ -248,6 +260,7 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) {
             .unwrap()
     );
 
+    // Push changes to GitHub
     let status = Command::new("git")
         .current_dir(doc_upload)
         .arg("push")
