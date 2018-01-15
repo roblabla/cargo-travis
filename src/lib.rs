@@ -1,8 +1,11 @@
 extern crate cargo;
+extern crate fs_extra;
 
 use std::path::{Path, PathBuf};
 use std::process::{self, Command};
 use std::ffi::{OsString};
+use std::fs;
+use std::path;
 use cargo::core::{Workspace};
 use cargo::ops::{CompileOptions};
 use cargo::util::{CargoError, CargoErrorKind, CargoTestError, Test};
@@ -158,4 +161,103 @@ pub fn build_kcov() -> PathBuf {
     }
 
     std::env::current_dir().unwrap().join("kcov/build/src/kcov")
+}
+
+pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) {
+    fn require_success(status: process::ExitStatus) {
+        if !status.success() {
+            process::exit(status.code().unwrap())
+        }
+    }
+
+    let doc_upload = path::Path::new("target/doc-upload");
+    if !doc_upload.exists() {
+        let status = Command::new("git")
+            .arg("clone")
+            .arg("--verbose")
+            .args(&["--branch", gh_pages])
+            .args(&["--depth", "1"])
+            .arg(origin)
+            .arg(doc_upload)
+            .status()
+            .unwrap();
+        if !status.success() {
+            require_success(
+                Command::new("git")
+                    .arg("init")
+                    .arg(doc_upload)
+                    .status()
+                    .unwrap()
+            );
+            require_success(
+                Command::new("git")
+                    .current_dir(doc_upload)
+                    .arg("checkout")
+                    .args(&["-b", gh_pages])
+                    .status()
+                    .unwrap()
+            );
+        }
+    }
+
+    let doc_upload_branch = doc_upload.join(branch);
+    fs::create_dir(&doc_upload_branch).ok();
+    for entry in doc_upload_branch.read_dir().unwrap() {
+        let dir = entry.unwrap();
+        if dir.file_name() != OsString::from("index.html") {
+            let path = dir.path();
+            println!("rm -r {}", path.to_string_lossy());
+            fs::remove_dir_all(&path).ok();
+            fs::remove_file(path).ok();
+        }
+    }
+
+    let doc = path::Path::new("target/doc");
+    println!("cp {} {}", doc.to_string_lossy(), doc_upload_branch.to_string_lossy());
+    let mut last_progress = 0;
+    fs_extra::copy_items_with_progress(
+        &doc.read_dir().unwrap().map(|entry| entry.unwrap().path()).collect(),
+        doc_upload_branch,
+        &fs_extra::dir::CopyOptions::new(),
+        |info| {
+            if info.copied_bytes >> 20 > last_progress {
+                last_progress = info.copied_bytes >> 20;
+                println!("{}/{} MiB", info.copied_bytes >> 20, info.total_bytes >> 20);
+            }
+            fs_extra::dir::TransitProcessResult::ContinueOrAbort
+        }
+    ).unwrap();
+
+    require_success(
+        Command::new("git")
+            .current_dir(doc_upload)
+            .arg("add")
+            .arg("--verbose")
+            .arg("--all")
+            .status()
+            .unwrap()
+    );
+
+    require_success(
+        Command::new("git")
+            .current_dir(doc_upload)
+            .arg("commit")
+            .arg("--verbose")
+            .args(&["-m", message])
+            .status()
+            .unwrap()
+    );
+
+    let status = Command::new("git")
+        .current_dir(doc_upload)
+        .arg("push")
+        .arg(origin)
+        .arg(gh_pages)
+        .status()
+        .unwrap();
+    if status.success() {
+        println!("Successfully updated documentation.");
+    } else {
+        println!("Documentation already up-to-date.");
+    }
 }
