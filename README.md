@@ -58,6 +58,8 @@ script:
 after_success:
 # measure code coverage and upload to coveralls.io
   - cargo coveralls
+# upload documentation to github.io (gh-pages branch)
+  - cargo doc-upload
 ```
 
 ## Help
@@ -124,3 +126,54 @@ Test Options:
     --frozen                     Require Cargo.lock and cache are up to date
     --locked                     Require Cargo.lock is up to date
 ```
+
+### `doc-upload`
+
+```
+Upload built rustdoc documentation to GitHub pages.
+
+Usage:
+    cargo doc-upload [options] [--] [<args>...]
+
+Options:
+    -V, --version                Print version info and exit
+    --branch NAME ...            Only publish documentation for these branches
+                                 Defaults to only the `master` branch
+    --token TOKEN                Use the specified GitHub token to publish documentation
+                                 If unspecified, checks $GH_TOKEN then attempts to use SSH endpoint
+    --message MESSAGE            The message to include in the commit
+    --deploy BRANCH              Deploy to the given branch [default: gh-pages]
+```
+
+The branch used for doc pushes _may_ be protected, as force-push is not used. Documentation is maintained per-branch
+in subdirectories, so `user.github.io/repo/master` is where the master branch's documentation lives. By default only
+master has documentation built, but you can build other branches' docs by passing any number of `--branch NAME`
+arguments (the presence of which _will_ disable the default master branch build). Documentation is deployed from
+`target/doc`, the default target for `rustdoc`, so make sure to run `cargo doc` before `cargo doc-upload`, and you can
+build up whatever directory structure you want in there if you want to document with alternate configurations.
+
+We suggest setting up a `index.html` in the root directory of documentation to redirect to the actual content.
+For this purpose we don't touch the root of the `gh-pages` branch (except to create the branch folders) and purposefully
+ignore `index.html` in the branch folders. An example `index.html` might look like this:
+
+```html
+<meta http-equiv="refresh" content="0; url=my_crate/index.html">
+<a href="my_crate/index.html">Redirect</a>
+```
+
+This requires Travis to have write-access to your repository. The simplest (and reasonably secure) way to achieve this
+is to create a [Personal API Access Token](https://github.com/blog/1509-personal-api-tokens) with `public_repo` scope.
+Then on travis, [define the secure environment variable][Travis envvar] `GH_TOKEN` with the value being the new token.
+
+  [Travis envvar]: <https://docs.travis-ci.com/user/environment-variables/#Defining-Variables-in-Repository-Settings>
+  [Travis Pro deploy]: <https://blog.travis-ci.com/2012-07-26-travis-pro-update-deploy-keys>
+  [Travis encrypt-file]: <https://docs.travis-ci.com/user/encrypting-files/>
+
+This gives any script running on Travis permission to read/write public repositories that you can if they use it
+(on non-PR builds only, though keep in mind that bors staging/trying is not a PR build), so be aware of that.
+This _does_ work for organization repositories as well, so long as the user's token has permission to write to it.
+
+If you want more security, you can use a [deploy key](https://github.com/blog/2024-read-only-deploy-keys) for
+repo-specific access. If you do not provide a token, the script will use SSH to clone from/write to the repository.
+[Travis Pro handles the deploy key automatically][Travis Pro deploy], and regular users can use [Travis encrypt-file]
+plus a script to move the private key to the correct location.
