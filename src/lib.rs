@@ -3,6 +3,7 @@ extern crate cargo;
 use std::path::{Path, PathBuf};
 use std::process::{self, Command};
 use std::ffi::{OsString};
+use std::fs;
 use cargo::core::{Workspace};
 use cargo::ops::{CompileOptions};
 use cargo::util::{CargoError, CargoErrorKind, CargoTestError, Test};
@@ -107,7 +108,8 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
     }
 }
 
-pub fn build_kcov() -> PathBuf {
+pub fn build_kcov<P: AsRef<Path>>(kcov_dir: P) -> PathBuf {
+    // If kcov is in path
     if let Some(paths) = std::env::var_os("PATH") {
         for path in std::env::split_paths(&paths) {
             if path.join("kcov").exists() {
@@ -115,47 +117,62 @@ pub fn build_kcov() -> PathBuf {
             }
         }
     }
-    if Path::new("kcov/build/src/kcov").exists() {
-        return std::env::current_dir().unwrap().join("kcov/build/src/kcov");
-    }
 
-    let mut init = String::new();
-
-    init.push_str(r"
-    rm -rf master.zip kcov-master kcov
-    wget https://github.com/SimonKagstrom/kcov/archive/master.zip
-    unzip master.zip
-    mv kcov-master kcov
-    mkdir -p kcov/build
-    ");
-
-    for line in init.split("\n") {
-        let line = line.trim();
-        if !line.is_empty() {
-            println!("Running: {:?}", line);
-            let tokens: Vec<_> = line.split(" ").collect();
-            let status = Command::new(tokens[0]).args(&tokens[1..]).status().unwrap();
-            if !status.success() {
-                process::exit(status.code().unwrap());
-            }
+    // TODO: Deduplicate this with the one in doc_upload
+    fn require_success(status: process::ExitStatus) {
+        if !status.success() {
+            process::exit(status.code().unwrap())
         }
     }
 
-    let build = r"
-        cmake ..
-        make
-    ";
-    for line in build.split("\n") {
-        let line = line.trim();
-        if !line.is_empty() {
-            println!("Running: {:?}", line);
-            let tokens: Vec<_> = line.split(" ").collect();
-            let status = Command::new(tokens[0]).args(&tokens[1..]).current_dir("kcov/build").status().unwrap();
-            if !status.success() {
-                process::exit(status.code().unwrap());
-            }
-        }
+    let kcov_dir: &Path = kcov_dir.as_ref();
+    let kcov_master_dir = kcov_dir.join("kcov-master");
+    let kcov_build_dir = kcov_master_dir.join("build");
+    let kcov_built_path = kcov_build_dir.join("src/kcov");
+
+    // If we already built kcov
+    if kcov_built_path.exists() {
+        return kcov_built_path;
     }
 
-    std::env::current_dir().unwrap().join("kcov/build/src/kcov")
+    // Download kcov
+    println!("Downloading kcov");
+    require_success(
+        Command::new("wget")
+            .current_dir(kcov_dir)
+            .arg("https://github.com/SimonKagstrom/kcov/archive/master.zip")
+            .status()
+            .unwrap()
+    );
+
+    // Extract kcov
+    println!("Extracting kcov");
+    require_success(
+        Command::new("unzip")
+            .current_dir(kcov_dir)
+            .arg("master.zip")
+            .status()
+            .unwrap()
+    );
+
+    // Build kcov
+    fs::create_dir(&kcov_build_dir);
+    println!("CMaking kcov");
+    require_success(
+        Command::new("cmake")
+            .current_dir(&kcov_build_dir)
+            .arg("..")
+            .status()
+            .unwrap()
+    );
+    println!("Making kcov");
+    require_success(
+        Command::new("make")
+            .current_dir(&kcov_build_dir)
+            .status()
+            .unwrap()
+    );
+
+    assert!(kcov_build_dir.exists());
+    kcov_built_path
 }
