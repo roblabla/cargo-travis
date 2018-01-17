@@ -1,6 +1,7 @@
 extern crate cargo;
+extern crate fs_extra;
 
-use std::path::{Path, PathBuf};
+use std::path::{self, Path, PathBuf};
 use std::process::{self, Command};
 use std::ffi::{OsString};
 use std::fs;
@@ -175,4 +176,116 @@ pub fn build_kcov<P: AsRef<Path>>(kcov_dir: P) -> PathBuf {
 
     assert!(kcov_build_dir.exists());
     kcov_built_path
+}
+
+pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) {
+    fn require_success(status: process::ExitStatus) {
+        if !status.success() {
+            process::exit(status.code().unwrap())
+        }
+    }
+
+    let doc_upload = path::Path::new("target/doc-upload");
+    if !doc_upload.exists() {
+        // If the folder doesn't exist, clone it from remote
+        // ASSUME: if target/doc-upload exists, it's ours
+        let status = Command::new("git")
+            .arg("clone")
+            .arg("--verbose")
+            .args(&["--branch", gh_pages])
+            .args(&["--depth", "1"])
+            .arg(origin)
+            .arg(doc_upload)
+            .status()
+            .unwrap();
+        if !status.success() {
+            // If clone fails, that means that the remote doesn't exist
+            // So we create a new repository for the documentation branch
+            require_success(
+                Command::new("git")
+                    .arg("init")
+                    .arg(doc_upload)
+                    .status()
+                    .unwrap()
+            );
+            require_success(
+                Command::new("git")
+                    .current_dir(doc_upload)
+                    .arg("checkout")
+                    .args(&["-b", gh_pages])
+                    .status()
+                    .unwrap()
+            );
+        }
+    }
+
+    let doc_upload_branch = doc_upload.join(branch);
+    fs::create_dir(&doc_upload_branch).ok(); // Create dir if not exists
+    for entry in doc_upload_branch.read_dir().unwrap() {
+        let dir = entry.unwrap();
+        // Delete all files in directory, as we'll be copying in everything
+        // Ignore index.html (at root) so a redirect page can be manually added
+        if dir.file_name() != OsString::from("index.html") {
+            let path = dir.path();
+            println!("rm -r {}", path.to_string_lossy());
+            fs::remove_dir_all(&path).ok();
+            fs::remove_file(path).ok();
+        }
+    }
+
+    let doc = path::Path::new("target/doc");
+    println!("cp {} {}", doc.to_string_lossy(), doc_upload_branch.to_string_lossy());
+    let mut last_progress = 0;
+    fs_extra::copy_items_with_progress(
+        &doc.read_dir().unwrap().map(|entry| entry.unwrap().path()).collect(),
+        doc_upload_branch,
+        &fs_extra::dir::CopyOptions::new(),
+        |info| {
+            // Some documentation can be very large, especially with a large number of dependencies
+            // Don't go silent during copy, give updates every MiB processed
+            if info.copied_bytes >> 20 > last_progress {
+                last_progress = info.copied_bytes >> 20;
+                println!("{}/{} MiB", info.copied_bytes >> 20, info.total_bytes >> 20);
+            }
+            fs_extra::dir::TransitProcessResult::ContinueOrAbort
+        }
+    ).unwrap();
+
+    // Tell git to track all of the files we copied over
+    // Also tracks deletions of files if things changed
+    require_success(
+        Command::new("git")
+            .current_dir(doc_upload)
+            .arg("add")
+            .arg("--verbose")
+            .arg("--all")
+            .status()
+            .unwrap()
+    );
+
+    // Save the changes
+    // No-op if no changes were made
+    require_success(
+        Command::new("git")
+            .current_dir(doc_upload)
+            .arg("commit")
+            .arg("--verbose")
+            .args(&["-m", message])
+            .status()
+            .unwrap()
+    );
+
+    // Push changes to GitHub
+    let status = Command::new("git")
+        .current_dir(doc_upload)
+        .arg("push")
+        .arg(origin)
+        .arg(gh_pages)
+        .status()
+        .unwrap();
+    if status.success() {
+        println!("Successfully updated documentation.");
+    } else {
+        println!("Documentation already up-to-date.");
+    }
 }
