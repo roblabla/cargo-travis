@@ -1,7 +1,7 @@
 extern crate cargo;
 extern crate fs_extra;
 
-use std::path::{self, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::process::{self, Command};
 use std::ffi::{OsString};
 use std::fs;
@@ -109,6 +109,12 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
     }
 }
 
+fn require_success(status: process::ExitStatus) {
+    if !status.success() {
+        process::exit(status.code().unwrap())
+    }
+}
+
 pub fn build_kcov<P: AsRef<Path>>(kcov_dir: P) -> PathBuf {
     // If kcov is in path
     if let Some(paths) = std::env::var_os("PATH") {
@@ -116,13 +122,6 @@ pub fn build_kcov<P: AsRef<Path>>(kcov_dir: P) -> PathBuf {
             if path.join("kcov").exists() {
                 return path.join("kcov");
             }
-        }
-    }
-
-    // TODO: Deduplicate this with the one in doc_upload
-    fn require_success(status: process::ExitStatus) {
-        if !status.success() {
-            process::exit(status.code().unwrap())
         }
     }
 
@@ -179,13 +178,7 @@ pub fn build_kcov<P: AsRef<Path>>(kcov_dir: P) -> PathBuf {
 }
 
 pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) {
-    fn require_success(status: process::ExitStatus) {
-        if !status.success() {
-            process::exit(status.code().unwrap())
-        }
-    }
-
-    let doc_upload = path::Path::new("target/doc-upload");
+    let doc_upload = Path::new("target/doc-upload");
     if !doc_upload.exists() {
         // If the folder doesn't exist, clone it from remote
         // ASSUME: if target/doc-upload exists, it's ours
@@ -233,7 +226,7 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) {
         }
     }
 
-    let doc = path::Path::new("target/doc");
+    let doc = Path::new("target/doc");
     println!("cp {} {}", doc.to_string_lossy(), doc_upload_branch.to_string_lossy());
     let mut last_progress = 0;
     fs_extra::copy_items_with_progress(
