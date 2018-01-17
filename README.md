@@ -20,6 +20,10 @@ A possible `travis.yml` configuration is:
 ```yaml
 sudo: false
 language: rust
+
+# Cache cargo symbols for faster build
+cache: cargo
+
 # Dependencies of kcov, used by coverage
 addons:
   apt:
@@ -28,7 +32,7 @@ addons:
       - libelf-dev
       - libdw-dev
       - binutils-dev
-      - cmake
+      - cmake # also required for cargo-update
     sources:
       - kalakris-cmake
 
@@ -43,9 +47,10 @@ rust:
   - 1.0.0
 
 before_script:
-  - |
-      cargo install --force cargo-travis &&
-      export PATH=$HOME/.cargo/bin:$PATH
+  - export PATH=$HOME/.cargo/bin:$PATH
+  - cargo install cargo-update || echo "cargo-update already installed"
+  - cargo install cargo-travis || echo "cargo-travis already installed"
+  - cargo install-update -a # update outdated cached binaries
 
 # the main build
 script:
@@ -61,6 +66,8 @@ after_success:
 # upload documentation to github.io (gh-pages branch)
   - cargo doc-upload
 ```
+
+See the [cargo-update repository](https://github.com/nabijaczleweli/cargo-update) for details on `cargo-update`.
 
 ## Help
 
