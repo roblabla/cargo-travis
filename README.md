@@ -81,14 +81,26 @@ Usage:
     cargo coverage [options] [--] [<args>...]
 
 Coverage Options:
+    -V, --version                Print version info and exit
     -m PATH, --merge-into PATH   Path to the directory to put the final merged
                                  kcov result into [default: target/kcov]
+    --exclude-pattern PATTERN    Comma-separated path patterns to exclude from the report
+    --kcov-build-location PATH   Path to the directory in which to build kcov (into a new folder)
+                                 [default: target] -- kcov ends up in target/kcov-master
+
 Test Options:
     -h, --help                   Print this message
     --lib                        Test only this package's library
     --bin NAME                   Test only the specified binary
+    --bins                       Test all binaries
     --test NAME                  Test only the specified integration test target
+    --tests                      Test all tests
+    --bench NAME ...             Test only the specified bench target
+    --benches                    Test all benches
+    --all-targets                Test all targets (default)
     -p SPEC, --package SPEC ...  Package to run tests for
+    --all                        Test all packages in the workspace
+    --exclude SPEC ...           Exclude packages from the test
     -j N, --jobs N               Number of parallel jobs, defaults to # of CPUs
     --release                    Build artifacts in release mode, with optimizations
     --features FEATURES          Space-separated list of features to also build
@@ -102,6 +114,7 @@ Test Options:
     --no-fail-fast               Run all tests regardless of failure
     --frozen                     Require Cargo.lock and cache are up to date
     --locked                     Require Cargo.lock is up to date
+    -Z FLAG ...                  Unstable (nightly-only) flags to Cargo
 ```
 
 ### `coveralls`
@@ -113,12 +126,25 @@ but not doc tests. The results of all tests are sent to coveralls.io
 Usage:
     cargo coveralls [options] [--] [<args>...]
 
+Coveralls Options:
+    -V, --version                Print version info and exit
+    --exclude-pattern PATTERN    Comma-separated  path patterns to exclude from the report
+    --kcov-build-location PATH   Path to the directory in which to build kcov (into a new folder)
+                                 [default: target] -- kcov ends up in target/kcov-master
+
 Test Options:
     -h, --help                   Print this message
     --lib                        Test only this package's library
     --bin NAME                   Test only the specified binary
+    --bins                       Test all binaries
     --test NAME                  Test only the specified integration test target
+    --tests                      Test all tests
+    --bench NAME ...             Test only the specified bench target
+    --benches                    Test all benches
+    --all-targets                Test all targets (default)
     -p SPEC, --package SPEC ...  Package to run tests for
+    --all                        Test all packages in the workspace
+    --exclude SPEC ...           Exclude packages from the test
     -j N, --jobs N               Number of parallel jobs, defaults to # of CPUs
     --release                    Build artifacts in release mode, with optimizations
     --features FEATURES          Space-separated list of features to also build
@@ -132,6 +158,7 @@ Test Options:
     --no-fail-fast               Run all tests regardless of failure
     --frozen                     Require Cargo.lock and cache are up to date
     --locked                     Require Cargo.lock is up to date
+    -Z FLAG ...                  Unstable (nightly-only) flags to Cargo
 ```
 
 ### `doc-upload`

@@ -25,6 +25,8 @@ Coverage Options:
     -m PATH, --merge-into PATH   Path to the directory to put the final merged
                                  kcov result into [default: target/kcov]
     --exclude-pattern PATTERN    Comma-separated path patterns to exclude from the report
+    --kcov-build-location PATH   Path to the directory in which to build kcov (into a new folder)
+                                 [default: target] -- kcov ends up in target/kcov-master
 
 Test Options:
     -h, --help                   Print this message
@@ -89,7 +91,8 @@ pub struct Options {
 
     // cargo-coverage flags
     flag_exclude_pattern: Option<String>,
-    flag_merge_into: String
+    flag_merge_into: String,
+    flag_kcov_build_location: String,
 }
 
 fn execute(options: Options, config: &Config) -> CliResult {
@@ -101,7 +104,7 @@ fn execute(options: Options, config: &Config) -> CliResult {
         return Ok(());
     }
 
-    let kcov_path = build_kcov();
+    let kcov_path = build_kcov(options.flag_kcov_build_location);
     // TODO: build_kcov() - Might be a good idea to consider linking kcov as a
     // lib instead ?
     try!(config.configure(options.flag_verbose,
