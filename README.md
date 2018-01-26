@@ -18,7 +18,7 @@ export PATH=$HOME/.cargo/bin:$PATH
 A possible `travis.yml` configuration is:
 
 ```yaml
-sudo: false
+sudo: required
 language: rust
 
 # Cache cargo symbols for faster build
@@ -68,6 +68,8 @@ after_success:
 ```
 
 See the [cargo-update repository](https://github.com/nabijaczleweli/cargo-update) for details on `cargo-update`.
+
+Note that `sudo: required` is necessary to use kcov. See [this issue](https://github.com/travis-ci/travis-ci/issues/9061) for more information.
 
 ## Help
 
