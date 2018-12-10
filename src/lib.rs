@@ -28,6 +28,11 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
     // RUSTFLAGS should be preserved as well (and should be put last, so that
     // they override any earlier repeats).
     let mut rustflags: std::ffi::OsString = "-C link-dead-code".into();
+    if options.compile_opts.release {
+        // In release mode, ensure that there's debuginfo in some form so that
+        // kcov has something to work with.
+        rustflags.push(" -C debuginfo=2");
+    }
     if let Some(existing) = std::env::var_os("RUSTFLAGS") {
         rustflags.push(" ");
         rustflags.push(existing);
