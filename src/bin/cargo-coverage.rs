@@ -133,10 +133,6 @@ fn execute(options: Options, config: &Config) -> CliResult {
 
     let spec = try!(Packages::from_flags(ws.is_virtual(), options.flag_all, &options.flag_exclude, &options.flag_package));
 
-    // TODO: Shouldn't this be in run_coverage ?
-    // TODO: It'd be nice if there was a flag in compile_opts for this.
-    std::env::set_var("RUSTFLAGS", "-C link-dead-code");
-
     let ops = CoverageOptions {
         merge_dir: Path::new(&options.flag_merge_into),
         merge_args: vec![],

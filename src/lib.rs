@@ -21,6 +21,20 @@ pub struct CoverageOptions<'a> {
 }
 
 pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[String]) -> CargoResult<Option<CargoTestError>> {
+    // TODO: It'd be nice if there was a flag in compile_opts for this.
+
+    // The compiler needs to be told to not remove any code that isn't called or
+    // it'll be missed in the coverage counts, but the existing user-provided
+    // RUSTFLAGS should be preserved as well (and should be put last, so that
+    // they override any earlier repeats).
+    let mut rustflags: std::ffi::OsString = "-C link-dead-code".into();
+    if let Some(existing) = std::env::var_os("RUSTFLAGS") {
+        rustflags.push(" ");
+        rustflags.push(existing);
+    }
+    std::env::set_var("RUSTFLAGS", rustflags);
+
+
     let mut compilation = try!(cargo::ops::compile(ws, &options.compile_opts));
     compilation.tests.sort_by(|a, b| {
         (a.0.package_id(), &a.1).cmp(&(b.0.package_id(), &b.1))
