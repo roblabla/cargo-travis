@@ -196,7 +196,7 @@ pub fn build_kcov<P: AsRef<Path>>(kcov_dir: P) -> PathBuf {
     kcov_built_path
 }
 
-pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) {
+pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str, index: bool) {
     let doc_upload = Path::new("target/doc-upload");
     if !doc_upload.exists() {
         // If the folder doesn't exist, clone it from remote
@@ -237,7 +237,8 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) {
         let dir = entry.unwrap();
         // Delete all files in directory, as we'll be copying in everything
         // Ignore index.html (at root) so a redirect page can be manually added
-        if dir.file_name() != OsString::from("index.html") {
+        // unless user wants otherwise
+        if dir.file_name() != OsString::from("index.html") || index {
             let path = dir.path();
             println!("rm -r {}", path.to_string_lossy());
             fs::remove_dir_all(&path).ok();
