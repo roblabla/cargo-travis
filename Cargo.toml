@@ -18,6 +18,7 @@ fs_extra = "1.1"
 log = "0.3"
 serde = "1.0"
 serde_derive = "1.0"
+badge = "0.2"
 
 # Temporary band-aid
 docopt = "=0.8.1"
