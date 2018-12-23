@@ -276,28 +276,28 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) {
     );
 
     // Save the changes
-    // No-op if no changes were made
-    require_success(
-        Command::new("git")
-            .current_dir(doc_upload)
-            .arg("commit")
-            .arg("--verbose")
-            .args(&["-m", message])
-            .status()
-            .unwrap()
-    );
-
-    // Push changes to GitHub
-    let status = Command::new("git")
+    if Command::new("git")
         .current_dir(doc_upload)
-        .arg("push")
-        .arg(origin)
-        .arg(gh_pages)
-        .status()
-        .unwrap();
-    if status.success() {
-        println!("Successfully updated documentation.");
-    } else {
-        println!("Documentation already up-to-date.");
+        .arg("commit")
+        .arg("--verbose")
+        .args(&["-m", message])
+        .status().is_err()
+    {
+        println!("No changes to the documentation.");
+    }
+    else {
+        // Push changes to GitHub
+        let status = Command::new("git")
+            .current_dir(doc_upload)
+            .arg("push")
+            .arg(origin)
+            .arg(gh_pages)
+            .status()
+            .unwrap();
+        if status.success() {
+            println!("Successfully updated documentation.");
+        } else {
+            println!("Documentation already up-to-date.");
+        }
     }
 }
