@@ -305,7 +305,7 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) -> 
     }
     else {
         println!("No documentation found to upload.");
-        result = Err(("No documentation generated".to_string(), 1));
+        result = Err(("No documentation generated".to_string(), 101));
     }
 
     // write badge to file
