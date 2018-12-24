@@ -199,7 +199,7 @@ pub fn build_kcov<P: AsRef<Path>>(kcov_dir: P) -> PathBuf {
     kcov_built_path
 }
 
-pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) {
+pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) -> Result<(), (String, i32)> {
     let doc_upload = Path::new("target/doc-upload");
     if !doc_upload.exists() {
         // If the folder doesn't exist, clone it from remote
@@ -279,6 +279,8 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) {
     println!("cp {} {}", doc.to_string_lossy(), doc_upload_branch.to_string_lossy());
     let mut last_progress = 0;
 
+    let mut result = Ok(());
+
     if let Ok(doc) = doc.read_dir() {
         fs_extra::copy_items_with_progress(
             &doc.map(|entry| entry.unwrap().path()).collect(),
@@ -303,6 +305,7 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) {
     }
     else {
         println!("No documentation found to upload.");
+        result = Err(("No documentation generated".to_string(), 1));
     }
 
     // write badge to file
@@ -346,4 +349,6 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) {
             println!("Documentation already up-to-date.");
         }
     }
+
+    result
 }
