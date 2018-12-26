@@ -1,6 +1,8 @@
 extern crate badge;
 extern crate cargo;
 extern crate fs_extra;
+#[macro_use]
+extern crate serde_json;
 
 use std::env;
 use std::io::Write;
@@ -249,11 +251,8 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) -> 
     }
 
     // default badge shows that no successful build was made
-    let mut badge_options = BadgeOptions {
-        subject: "docs".to_string(),
-        status: "no builds".to_string(),
-        color: "#e05d44".to_string(),
-    };
+    let mut badge_status = "no builds".to_string();
+    let mut badge_color = "#e05d44".to_string();
 
     // try to read manifest to extract version number
     let config = Config::default().expect("failed to create cargo Config");
@@ -272,7 +271,7 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) -> 
 
     // update badge to contain version number
     if let Ok(version) = &version {
-        badge_options.status = version.clone();
+        badge_status = version.clone();
     }
 
     let doc = Path::new("target/doc");
@@ -300,7 +299,7 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) -> 
         // update the badge to reflect build was successful
         // but only if we managed to extract a version number
         if version.is_ok() {
-            badge_options.color = "#4d76ae".to_string();
+            badge_color = "#4d76ae".to_string();
         }
     }
     else {
@@ -308,7 +307,23 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) -> 
         result = Err(("No documentation generated".to_string(), 1));
     }
 
-    // write badge to file
+    // make badge.json
+    let json = json!({
+        "subject": "docs",
+        "status": badge_status,
+        "color": badge_color
+    });
+
+    let mut file = fs::File::create(format!("target/doc-upload/{}/badge.json", branch)).unwrap();
+    file.write_all(json.to_string().as_bytes()).unwrap();
+
+    // make badge.svg
+    let badge_options = BadgeOptions {
+        subject: "docs".to_string(),
+        status: badge_status.to_string(),
+        color: badge_color.to_string(),
+    };
+
     let mut file = fs::File::create(format!("target/doc-upload/{}/badge.svg", branch)).unwrap();
     file.write_all(Badge::new(badge_options).unwrap().to_svg().as_bytes()).unwrap();
 
