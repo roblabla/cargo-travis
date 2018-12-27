@@ -283,7 +283,7 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) -> 
     if let Ok(doc) = doc.read_dir() {
         fs_extra::copy_items_with_progress(
             &doc.map(|entry| entry.unwrap().path()).collect(),
-            doc_upload_branch,
+            &doc_upload_branch,
             &fs_extra::dir::CopyOptions::new(),
             |info| {
                 // Some documentation can be very large, especially with a large number of dependencies
@@ -314,7 +314,7 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) -> 
         "color": badge_color
     });
 
-    let mut file = fs::File::create(format!("target/doc-upload/{}/badge.json", branch)).unwrap();
+    let mut file = fs::File::create(doc_upload_branch.join("badge.json")).unwrap();
     file.write_all(json.to_string().as_bytes()).unwrap();
 
     // make badge.svg
@@ -324,7 +324,7 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) -> 
         color: badge_color.to_string(),
     };
 
-    let mut file = fs::File::create(format!("target/doc-upload/{}/badge.svg", branch)).unwrap();
+    let mut file = fs::File::create(doc_upload_branch.join("badge.svg")).unwrap();
     file.write_all(Badge::new(badge_options).unwrap().to_svg().as_bytes()).unwrap();
 
     // Tell git to track all of the files we copied over
