@@ -23,6 +23,7 @@ Options:
                                  If unspecified, checks $GH_TOKEN then attempts to use SSH endpoint
     --message MESSAGE            The message to include in the commit
     --deploy BRANCH              Deploy to the given branch [default: gh-pages]
+    --path Path                  Use the specified Path to upload documentation to [default: /$TRAVIS_BRANCH/]
 ");
 
 #[derive(Deserialize)]
@@ -32,6 +33,7 @@ pub struct Options {
     flag_token: Option<String>,
     flag_message: Option<String>,
     flag_deploy: Option<String>,
+    flag_path: Option<String>,
 }
 
 fn execute(options: Options, _: &Config) -> CliResult {
@@ -61,6 +63,8 @@ fn execute(options: Options, _: &Config) -> CliResult {
         return Ok(());
     }
 
+    let path = options.flag_path.unwrap_or_else(|| env::var("TRAVIS_BRANCH").expect("$TRAVIS_BRANCH not set"));
+
     // TODO FEAT: Allow passing origin string
     let token = options.flag_token.or(env::var("GH_TOKEN").ok());
     let slug = env::var("TRAVIS_REPO_SLUG").expect("$TRAVIS_REPO_SLUG not set");
@@ -75,7 +79,7 @@ fn execute(options: Options, _: &Config) -> CliResult {
     let message = options.flag_message.unwrap_or("Automatic Travis documentation build".to_string());
     let gh_pages = options.flag_deploy.unwrap_or("gh-pages".to_string());
 
-    cargo_travis::doc_upload(&branch, &message, &origin, &gh_pages);
+    cargo_travis::doc_upload(&message, &origin, &gh_pages, &path);
     Ok(())
 }
 

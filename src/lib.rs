@@ -196,7 +196,7 @@ pub fn build_kcov<P: AsRef<Path>>(kcov_dir: P) -> PathBuf {
     kcov_built_path
 }
 
-pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) {
+pub fn doc_upload(message: &str, origin: &str, gh_pages: &str, doc_path: &str) {
     let doc_upload = Path::new("target/doc-upload");
     if !doc_upload.exists() {
         // If the folder doesn't exist, clone it from remote
@@ -231,7 +231,7 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) {
         }
     }
 
-    let doc_upload_branch = doc_upload.join(branch);
+    let doc_upload_branch = doc_upload.join(doc_path);
     fs::create_dir(&doc_upload_branch).ok(); // Create dir if not exists
     for entry in doc_upload_branch.read_dir().unwrap() {
         let dir = entry.unwrap();
