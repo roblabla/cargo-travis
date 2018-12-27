@@ -23,7 +23,7 @@ Options:
                                  If unspecified, checks $GH_TOKEN then attempts to use SSH endpoint
     --message MESSAGE            The message to include in the commit
     --deploy BRANCH              Deploy to the given branch [default: gh-pages]
-    --clobber-index              Delete `index.html` from repo.
+    --clobber-index              Delete `index.html` from repo
 ");
 
 #[derive(Deserialize)]
