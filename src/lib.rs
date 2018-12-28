@@ -309,8 +309,9 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) -> 
 
     // make badge.json
     let json = json!({
-        "subject": "docs",
-        "status": badge_status,
+        "schemaVersion": 1,
+        "label": "docs",
+        "message": badge_status,
         "color": badge_color
     });
 
