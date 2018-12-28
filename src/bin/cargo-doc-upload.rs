@@ -23,7 +23,8 @@ Options:
                                  If unspecified, checks $GH_TOKEN then attempts to use SSH endpoint
     --message MESSAGE            The message to include in the commit
     --deploy BRANCH              Deploy to the given branch [default: gh-pages]
-    --path Path                  Use the specified Path to upload documentation to [default: /$TRAVIS_BRANCH/]
+    --path PATH                  Use the specified Path to upload documentation to
+                                 Defaults to `/$TRAVIS_BRANCH/`
 ");
 
 #[derive(Deserialize)]
@@ -63,7 +64,7 @@ fn execute(options: Options, _: &Config) -> CliResult {
         return Ok(());
     }
 
-    let path = options.flag_path.unwrap_or_else(|| env::var("TRAVIS_BRANCH").expect("$TRAVIS_BRANCH not set"));
+    let path = options.flag_path.unwrap_or(branch);
 
     // TODO FEAT: Allow passing origin string
     let token = options.flag_token.or(env::var("GH_TOKEN").ok());
