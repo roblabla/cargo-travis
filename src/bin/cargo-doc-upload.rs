@@ -23,8 +23,8 @@ Options:
                                  If unspecified, checks $GH_TOKEN then attempts to use SSH endpoint
     --message MESSAGE            The message to include in the commit
     --deploy BRANCH              Deploy to the given branch [default: gh-pages]
-    --path PATH                  Use the specified Path to upload documentation to
-                                 Defaults to `/$TRAVIS_BRANCH/`
+    --path PATH                  Use the specified Path to upload the documentation to
+                                 Defaults to `/$TRAVIS_BRANCH/` in the git repository
 ");
 
 #[derive(Deserialize)]
