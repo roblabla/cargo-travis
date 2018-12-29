@@ -307,17 +307,6 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str) -> 
         result = Err(("No documentation generated".to_string(), 1));
     }
 
-    // make badge.json
-    let json = json!({
-        "schemaVersion": 1,
-        "label": "docs",
-        "message": badge_status,
-        "color": badge_color
-    });
-
-    let mut file = fs::File::create(doc_upload_branch.join("badge.json")).unwrap();
-    file.write_all(json.to_string().as_bytes()).unwrap();
-
     // make badge.svg
     let badge_options = BadgeOptions {
         subject: "docs".to_string(),
