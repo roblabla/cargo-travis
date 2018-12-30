@@ -179,6 +179,7 @@ Options:
                                  If unspecified, checks $GH_TOKEN then attempts to use SSH endpoint
     --message MESSAGE            The message to include in the commit
     --deploy BRANCH              Deploy to the given branch [default: gh-pages]
+    --clobber-index              Delete `index.html` from repo
 ```
 
 The branch used for doc pushes _may_ be protected, as force-push is not used. Documentation is maintained per-branch
@@ -190,7 +191,9 @@ build up whatever directory structure you want in there if you want to document 
 
 We suggest setting up a `index.html` in the root directory of documentation to redirect to the actual content.
 For this purpose we don't touch the root of the `gh-pages` branch (except to create the branch folders) and purposefully
-ignore `index.html` in the branch folders. An example `index.html` might look like this:
+ignore `index.html` in the branch folders. You can opt out of this behaviour by passing `--clobber-index`. An `index.html`
+file might be created by using `cargo rustdoc -- -Z unstable-options --enable-index-page` (works only in rust nightly) or
+look like this:
 
 ```html
 <meta http-equiv="refresh" content="0; url=my_crate/index.html">
