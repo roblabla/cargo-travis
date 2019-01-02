@@ -1,14 +1,19 @@
+extern crate badge;
 extern crate cargo;
 extern crate fs_extra;
+#[macro_use]
+extern crate serde_json;
 
+use std::env;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{self, Command};
 use std::ffi::{OsString};
 use std::fs;
+use badge::{Badge, BadgeOptions};
 use cargo::core::{Workspace};
 use cargo::ops::{CompileOptions};
-use cargo::util::{CargoError, CargoErrorKind, CargoTestError, Test};
-use cargo::util::process;
+use cargo::util::{config::Config, process, CargoError, CargoErrorKind, CargoTestError, Test};
 use cargo::{CargoResult};
 
 pub struct CoverageOptions<'a> {
@@ -69,7 +74,7 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
 
         let mut args = vec![
             OsString::from("--verify"),
-            OsString::from(default_include_path), 
+            OsString::from(default_include_path),
             OsString::from(target)];
 
         // add exclude path
@@ -196,7 +201,7 @@ pub fn build_kcov<P: AsRef<Path>>(kcov_dir: P) -> PathBuf {
     kcov_built_path
 }
 
-pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str, clobber_index: bool) {
+pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str, clobber_index: bool) -> Result<(), (String, i32)> {
     let doc_upload = Path::new("target/doc-upload");
     if !doc_upload.exists() {
         // If the folder doesn't exist, clone it from remote
@@ -250,23 +255,72 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str, clo
         }
     }
 
+    // default badge shows that no successful build was made
+    let mut badge_status = "no builds".to_string();
+    let mut badge_color = "#e05d44".to_string();
+
+    // try to read manifest to extract version number
+    let config = Config::default().expect("failed to create cargo Config");
+    let mut version = Err(());
+
+    let mut manifest = env::current_dir().unwrap();
+    manifest.push("Cargo.toml");
+
+    match Workspace::new(&manifest, &config) {
+        Ok(workspace) => match workspace.current() {
+            Ok(package) => version = Ok(format!("{}", package.manifest().version())),
+            Err(error) => println!("couldn't get package: {}", error),
+        },
+        Err(error) => println!("couldn't generate workspace: {}", error),
+    }
+
+    // update badge to contain version number
+    if let Ok(version) = &version {
+        badge_status = version.clone();
+    }
+
     let doc = Path::new("target/doc");
     println!("cp {} {}", doc.to_string_lossy(), doc_upload_branch.to_string_lossy());
     let mut last_progress = 0;
-    fs_extra::copy_items_with_progress(
-        &doc.read_dir().unwrap().map(|entry| entry.unwrap().path()).collect(),
-        doc_upload_branch,
-        &fs_extra::dir::CopyOptions::new(),
-        |info| {
-            // Some documentation can be very large, especially with a large number of dependencies
-            // Don't go silent during copy, give updates every MiB processed
-            if info.copied_bytes >> 20 > last_progress {
-                last_progress = info.copied_bytes >> 20;
-                println!("{}/{} MiB", info.copied_bytes >> 20, info.total_bytes >> 20);
+
+    let mut result = Ok(());
+
+    if let Ok(doc) = doc.read_dir() {
+        fs_extra::copy_items_with_progress(
+            &doc.map(|entry| entry.unwrap().path()).collect(),
+            &doc_upload_branch,
+            &fs_extra::dir::CopyOptions::new(),
+            |info| {
+                // Some documentation can be very large, especially with a large number of dependencies
+                // Don't go silent during copy, give updates every MiB processed
+                if info.copied_bytes >> 20 > last_progress {
+                    last_progress = info.copied_bytes >> 20;
+                    println!("{}/{} MiB", info.copied_bytes >> 20, info.total_bytes >> 20);
+                }
+                fs_extra::dir::TransitProcessResult::ContinueOrAbort
             }
-            fs_extra::dir::TransitProcessResult::ContinueOrAbort
+        ).unwrap();
+
+        // update the badge to reflect build was successful
+        // but only if we managed to extract a version number
+        if version.is_ok() {
+            badge_color = "#4d76ae".to_string();
         }
-    ).unwrap();
+    }
+    else {
+        println!("No documentation found to upload.");
+        result = Err(("No documentation generated".to_string(), 1));
+    }
+
+    // make badge.svg
+    let badge_options = BadgeOptions {
+        subject: "docs".to_string(),
+        status: badge_status.to_string(),
+        color: badge_color.to_string(),
+    };
+
+    let mut file = fs::File::create(doc_upload_branch.join("badge.svg")).unwrap();
+    file.write_all(Badge::new(badge_options).unwrap().to_svg().as_bytes()).unwrap();
 
     // Tell git to track all of the files we copied over
     // Also tracks deletions of files if things changed
@@ -281,28 +335,30 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str, clo
     );
 
     // Save the changes
-    // No-op if no changes were made
-    require_success(
-        Command::new("git")
-            .current_dir(doc_upload)
-            .arg("commit")
-            .arg("--verbose")
-            .args(&["-m", message])
-            .status()
-            .unwrap()
-    );
-
-    // Push changes to GitHub
-    let status = Command::new("git")
+    if Command::new("git")
         .current_dir(doc_upload)
-        .arg("push")
-        .arg(origin)
-        .arg(gh_pages)
-        .status()
-        .unwrap();
-    if status.success() {
-        println!("Successfully updated documentation.");
-    } else {
-        println!("Documentation already up-to-date.");
+        .arg("commit")
+        .arg("--verbose")
+        .args(&["-m", message])
+        .status().is_err()
+    {
+        println!("No changes to the documentation.");
     }
+    else {
+        // Push changes to GitHub
+        let status = Command::new("git")
+            .current_dir(doc_upload)
+            .arg("push")
+            .arg(origin)
+            .arg(gh_pages)
+            .status()
+            .unwrap();
+        if status.success() {
+            println!("Successfully updated documentation.");
+        } else {
+            println!("Documentation already up-to-date.");
+        }
+    }
+
+    result
 }

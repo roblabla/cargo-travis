@@ -183,7 +183,8 @@ Options:
 ```
 
 The branch used for doc pushes _may_ be protected, as force-push is not used. Documentation is maintained per-branch
-in subdirectories, so `user.github.io/repo/master` is where the master branch's documentation lives. By default only
+in subdirectories, so `user.github.io/repo/master` is where the master branch's documentation lives. A badge is generated
+too, like [docs.rs](https://docs.rs/about), that is located at `user.github.io/repo/master/badge.svg`. By default only
 master has documentation built, but you can build other branches' docs by passing any number of `--branch NAME`
 arguments (the presence of which _will_ disable the default master branch build). Documentation is deployed from
 `target/doc`, the default target for `rustdoc`, so make sure to run `cargo doc` before `cargo doc-upload`, and you can
