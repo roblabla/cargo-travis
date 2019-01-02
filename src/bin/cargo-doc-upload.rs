@@ -7,7 +7,7 @@ extern crate serde_derive;
 extern crate log;
 
 use std::env;
-use cargo::util::{CargoError, Config, CliResult};
+use cargo::util::{CargoError, Config, CliResult, CliError};
 
 pub const USAGE: &'static str = ("
 Upload built rustdoc documentation to GitHub pages.
@@ -75,8 +75,10 @@ fn execute(options: Options, _: &Config) -> CliResult {
     let message = options.flag_message.unwrap_or("Automatic Travis documentation build".to_string());
     let gh_pages = options.flag_deploy.unwrap_or("gh-pages".to_string());
 
-    cargo_travis::doc_upload(&branch, &message, &origin, &gh_pages);
-    Ok(())
+    match cargo_travis::doc_upload(&branch, &message, &origin, &gh_pages) {
+        Ok(..) => Ok(()),
+        Err((string, err)) => Err(CliError::new(CargoError::from(string), err)),
+    }
 }
 
 fn main() {
