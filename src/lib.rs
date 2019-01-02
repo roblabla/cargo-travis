@@ -201,7 +201,7 @@ pub fn build_kcov<P: AsRef<Path>>(kcov_dir: P) -> PathBuf {
     kcov_built_path
 }
 
-pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str, doc_path: &str) -> Result<(), (String, i32)> {
+pub fn doc_upload(message: &str, origin: &str, gh_pages: &str, doc_path: &str) -> Result<(), (String, i32)> {
     let doc_upload = Path::new("target/doc-upload");
     if !doc_upload.exists() {
         // If the folder doesn't exist, clone it from remote

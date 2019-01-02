@@ -80,7 +80,7 @@ fn execute(options: Options, _: &Config) -> CliResult {
     let message = options.flag_message.unwrap_or("Automatic Travis documentation build".to_string());
     let gh_pages = options.flag_deploy.unwrap_or("gh-pages".to_string());
 
-    match cargo_travis::doc_upload(&branch, &message, &origin, &gh_pages, &path) {
+    match cargo_travis::doc_upload(&message, &origin, &gh_pages, &path) {
         Ok(..) => Ok(()),
         Err((string, err)) => Err(CliError::new(CargoError::from(string), err)),
     }
