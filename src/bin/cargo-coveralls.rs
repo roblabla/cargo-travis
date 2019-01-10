@@ -1,6 +1,9 @@
 extern crate cargo;
 extern crate cargo_travis;
+extern crate docopt;
 extern crate env_logger;
+#[macro_use]
+extern crate failure;
 #[macro_use]
 extern crate serde_derive;
 #[macro_use]
@@ -9,9 +12,11 @@ extern crate log;
 use std::env;
 use std::path::Path;
 use cargo_travis::{CoverageOptions, build_kcov};
-use cargo::core::{Workspace};
-use cargo::util::{CargoError, CargoErrorKind, Config, CliResult, CliError};
-use cargo::ops::{Packages, MessageFormat};
+use cargo::core::{compiler::BuildConfig, Workspace};
+use cargo::util::{Config, CliResult, CliError};
+use cargo::ops::{Packages};
+use docopt::Docopt;
+use failure::err_msg;
 
 pub const USAGE: &'static str = "
 Record coverage of `cargo test`, this runs all binaries that `cargo test` runs
@@ -92,7 +97,7 @@ pub struct Options {
     flag_kcov_build_location: String,
 }
 
-fn execute(options: Options, config: &Config) -> CliResult {
+fn execute(options: Options, config: &mut Config) -> CliResult {
     debug!("executing; cmd=cargo-coveralls; args={:?}",
            env::args().collect::<Vec<_>>());
 
@@ -109,26 +114,35 @@ fn execute(options: Options, config: &Config) -> CliResult {
                           &options.flag_color,
                           options.flag_frozen,
                           options.flag_locked,
+                          &None,
                           &options.flag_z));
 
-    let root = try!(cargo::util::important_paths::find_root_manifest_for_wd(options.flag_manifest_path, config.cwd()));
-    let ws = try!(Workspace::new(&root, config));
+    let ws = if let Some(path) = options.flag_manifest_path {
+        try!(Workspace::new(&Path::new(&path), config))
+    } else {
+        let root = try!(cargo::util::important_paths::find_root_manifest_for_wd(config.cwd()));
+        try!(Workspace::new(&root, config))
+    };
 
     let empty = vec![];
-    let (mode, filter) = (cargo::ops::CompileMode::Test, cargo::ops::CompileFilter::new(
+    let (mode, filter) = (cargo::core::compiler::CompileMode::Test, cargo::ops::CompileFilter::new(
         options.flag_lib,
-        &options.flag_bin,
+        options.flag_bin,
         options.flag_bins,
-        &options.flag_test,
+        options.flag_test,
         options.flag_tests,
-        &empty,
+        empty,
         false,
-        &options.flag_bench,
+        options.flag_bench,
         options.flag_benches,
         options.flag_all_targets
     ));
 
-    let spec = try!(Packages::from_flags(ws.is_virtual(), options.flag_all, &options.flag_exclude, &options.flag_package));
+    let spec = try!(Packages::from_flags(options.flag_all, options.flag_exclude, options.flag_package));
+
+    // TODO: Force compilation target == host, kcov
+    let mut build_config = try!(BuildConfig::new(config, options.flag_jobs, &options.flag_target, mode));
+    build_config.release = options.flag_release;
 
     let job_id = std::env::var_os("TRAVIS_JOB_ID")
         .expect("Environment variable TRAVIS_JOB_ID not found. This should be run from Travis");
@@ -141,18 +155,16 @@ fn execute(options: Options, config: &Config) -> CliResult {
         kcov_path: &kcov_path,
         compile_opts: cargo::ops::CompileOptions {
             config: config,
-            jobs: options.flag_jobs,
-            target: options.flag_target.as_ref().map(|s| &s[..]), // TODO: Force compilation target == host, kcov
-            message_format: MessageFormat::Human, // TODO: Allow to change this
+            build_config: build_config,
             all_features: options.flag_all_features,
-            features: &options.flag_features,
+            features: options.flag_features,
             no_default_features: options.flag_no_default_features,
             spec: spec,
-            release: options.flag_release,
-            mode: mode,
             filter: filter,
             target_rustdoc_args: None,
-            target_rustc_args: None
+            target_rustc_args: None,
+            local_rustdoc_args: None,
+            export_dir: None,
         },
     };
 
@@ -162,8 +174,8 @@ fn execute(options: Options, config: &Config) -> CliResult {
         None => Ok(()),
         Some(err) => {
             Err(match err.exit.as_ref().and_then(|e| e.code()) {
-                Some(i) => CliError::new("test failed".into(), i),
-                None => CliError::new(CargoErrorKind::CargoTestErrorKind(err).into(), 101)
+                Some(i) => CliError::new(err_msg("test failed"), i),
+                None => CliError::new(err.into(), 101)
             })
         }
     }
@@ -171,7 +183,7 @@ fn execute(options: Options, config: &Config) -> CliResult {
 
 fn main() {
     env_logger::init().unwrap();
-    let config = match Config::default() {
+    let mut config = match Config::default() {
         Ok(cfg) => cfg,
         Err(e) => {
              let mut shell = cargo::core::Shell::new();
@@ -182,12 +194,21 @@ fn main() {
         let args: Vec<_> = try!(env::args_os()
             .map(|s| {
                 s.into_string().map_err(|s| {
-                    CargoError::from(format!("invalid unicode in argument: {:?}", s))
+                    format_err!("invalid unicode in argument: {:?}", s)
                 })
             })
             .collect());
-        let rest = &args;
-        cargo::call_main_without_stdin(execute, &config, USAGE, rest, false)
+
+        let docopt = Docopt::new(USAGE).unwrap()
+            .argv(args.iter().map(|s| &s[..]))
+            .help(true);
+
+        let flags = docopt.deserialize().map_err(|e| {
+            let code = if e.fatal() {1} else {0};
+            CliError::new(e.into(), code)
+        })?;
+
+        execute(flags, &mut config)
     })();
     match result {
         Err(e) => cargo::exit_with_error(e, &mut *config.shell()),
