@@ -14,13 +14,14 @@ use cargo::util::{Config, CliResult, CliError};
 use docopt::Docopt;
 use failure::err_msg;
 
-pub const USAGE: &'static str = ("
+pub const USAGE: &'static str = "
 Upload built rustdoc documentation to GitHub pages.
 
 Usage:
-    cargo doc-upload [options] [--] [<args>...]
+    cargo doc-upload [options]
 
 Options:
+    -h, --help                   Print this message
     -V, --version                Print version info and exit
     --branch NAME ...            Only publish documentation for these branches
                                  Defaults to only the `master` branch
@@ -29,7 +30,7 @@ Options:
     --message MESSAGE            The message to include in the commit
     --deploy BRANCH              Deploy to the given branch [default: gh-pages]
     --clobber-index              Delete `index.html` from repo
-");
+";
 
 #[derive(Deserialize)]
 pub struct Options {
