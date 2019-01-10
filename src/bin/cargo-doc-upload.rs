@@ -23,6 +23,7 @@ Options:
                                  If unspecified, checks $GH_TOKEN then attempts to use SSH endpoint
     --message MESSAGE            The message to include in the commit
     --deploy BRANCH              Deploy to the given branch [default: gh-pages]
+    --clobber-index              Delete `index.html` from repo
 ");
 
 #[derive(Deserialize)]
@@ -32,6 +33,7 @@ pub struct Options {
     flag_token: Option<String>,
     flag_message: Option<String>,
     flag_deploy: Option<String>,
+    flag_clobber_index: bool,
 }
 
 fn execute(options: Options, _: &Config) -> CliResult {
@@ -74,8 +76,9 @@ fn execute(options: Options, _: &Config) -> CliResult {
 
     let message = options.flag_message.unwrap_or("Automatic Travis documentation build".to_string());
     let gh_pages = options.flag_deploy.unwrap_or("gh-pages".to_string());
+    let clobber_index = options.flag_clobber_index;
 
-    match cargo_travis::doc_upload(&branch, &message, &origin, &gh_pages) {
+    match cargo_travis::doc_upload(&branch, &message, &origin, &gh_pages, clobber_index) {
         Ok(..) => Ok(()),
         Err((string, err)) => Err(CliError::new(CargoError::from(string), err)),
     }
