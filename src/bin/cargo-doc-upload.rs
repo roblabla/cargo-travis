@@ -1,13 +1,18 @@
 extern crate cargo;
 extern crate cargo_travis;
+extern crate docopt;
 extern crate env_logger;
+#[macro_use]
+extern crate failure;
 #[macro_use]
 extern crate serde_derive;
 #[macro_use]
 extern crate log;
 
 use std::env;
-use cargo::util::{CargoError, Config, CliResult, CliError};
+use cargo::util::{Config, CliResult, CliError};
+use docopt::Docopt;
+use failure::err_msg;
 
 pub const USAGE: &'static str = ("
 Upload built rustdoc documentation to GitHub pages.
@@ -80,7 +85,7 @@ fn execute(options: Options, _: &Config) -> CliResult {
 
     match cargo_travis::doc_upload(&branch, &message, &origin, &gh_pages, clobber_index) {
         Ok(..) => Ok(()),
-        Err((string, err)) => Err(CliError::new(CargoError::from(string), err)),
+        Err((string, err)) => Err(CliError::new(err_msg(string), err)),
     }
 }
 
@@ -94,15 +99,24 @@ fn main() {
         }
     };
     let result = (|| {
-        let args: Vec<String> = try!(env::args_os()
+        let args: Vec<_> = try!(env::args_os()
             .map(|s| {
                 s.into_string().map_err(|s| {
-                    CargoError::from(format!("invalid unicode in argument: {:?}", s))
+                    format_err!("invalid unicode in argument: {:?}", s)
                 })
             })
             .collect());
-        let rest = &args;
-        cargo::call_main_without_stdin(execute, &config, USAGE, rest, false)
+
+        let docopt = Docopt::new(USAGE).unwrap()
+            .argv(args.iter().map(|s| &s[..]))
+            .help(true);
+
+        let flags = docopt.deserialize().map_err(|e| {
+            let code = if e.fatal() {1} else {0};
+            CliError::new(e.into(), code)
+        })?;
+
+        execute(flags, &config)
     })();
     match result {
         Err(e) => cargo::exit_with_error(e, &mut *config.shell()),

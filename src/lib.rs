@@ -13,7 +13,7 @@ use std::fs;
 use badge::{Badge, BadgeOptions};
 use cargo::core::{Workspace};
 use cargo::ops::{CompileOptions};
-use cargo::util::{config::Config, process, CargoError, CargoErrorKind, CargoTestError, Test};
+use cargo::util::{config::Config, errors::ProcessError, process, CargoTestError, Test};
 use cargo::{CargoResult};
 
 pub struct CoverageOptions<'a> {
@@ -33,7 +33,7 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
     // RUSTFLAGS should be preserved as well (and should be put last, so that
     // they override any earlier repeats).
     let mut rustflags: std::ffi::OsString = "-C link-dead-code".into();
-    if options.compile_opts.release {
+    if options.compile_opts.build_config.release {
         // In release mode, ensure that there's debuginfo in some form so that
         // kcov has something to work with.
         rustflags.push(" -C debuginfo=2");
@@ -97,15 +97,23 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
         let result = cmd.exec();
 
         match result {
-            Err(CargoError(CargoErrorKind::ProcessErrorKind(e), .. )) => {
-                 errors.push(e);
-                if !options.no_fail_fast {
-                    return Ok(Some(CargoTestError::new(Test::UnitTest(kind.clone(), test.clone()), errors)))
-                }
-            }
             Err(e) => {
-                //This is an unexpected Cargo error rather than a test failure
-                return Err(e)
+                match e.downcast::<ProcessError>() {
+                    Ok(e) => {
+                        errors.push(e);
+                        if !options.no_fail_fast {
+                            return Ok(Some(CargoTestError::new(Test::UnitTest {
+                                kind: kind.clone(),
+                                name: test.clone(),
+                                pkg_name: pkg.name().to_string(),
+                            }, errors)))
+                        }
+                    }
+                    Err(e) => {
+                        //This is an unexpected Cargo error rather than a test failure
+                        return Err(e)
+                    }
+                }
             }
             Ok(()) => {}
         }
