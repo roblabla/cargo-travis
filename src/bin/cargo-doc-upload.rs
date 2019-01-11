@@ -10,17 +10,19 @@ extern crate serde_derive;
 extern crate log;
 
 use std::env;
+use std::path::{Path, PathBuf};
 use cargo::util::{Config, CliResult, CliError};
 use docopt::Docopt;
 use failure::err_msg;
 
-pub const USAGE: &'static str = ("
+pub const USAGE: &'static str = "
 Upload built rustdoc documentation to GitHub pages.
 
 Usage:
-    cargo doc-upload [options] [--] [<args>...]
+    cargo doc-upload [options]
 
 Options:
+    -h, --help                   Print this message
     -V, --version                Print version info and exit
     --branch NAME ...            Only publish documentation for these branches
                                  Defaults to only the `master` branch
@@ -29,7 +31,8 @@ Options:
     --message MESSAGE            The message to include in the commit
     --deploy BRANCH              Deploy to the given branch [default: gh-pages]
     --clobber-index              Delete `index.html` from repo
-");
+    --target TRIPLE              Fetch the documentation for the target triple
+";
 
 #[derive(Deserialize)]
 pub struct Options {
@@ -39,6 +42,7 @@ pub struct Options {
     flag_message: Option<String>,
     flag_deploy: Option<String>,
     flag_clobber_index: bool,
+    flag_target: Option<String>,
 }
 
 fn execute(options: Options, _: &Config) -> CliResult {
@@ -83,7 +87,11 @@ fn execute(options: Options, _: &Config) -> CliResult {
     let gh_pages = options.flag_deploy.unwrap_or("gh-pages".to_string());
     let clobber_index = options.flag_clobber_index;
 
-    match cargo_travis::doc_upload(&branch, &message, &origin, &gh_pages, clobber_index) {
+    let local_doc_path = options.flag_target
+        .map(|v| Path::new("target").join(v).join("doc"))
+        .unwrap_or(PathBuf::from("target/doc"));
+
+    match cargo_travis::doc_upload(&branch, &message, &origin, &gh_pages, &local_doc_path, clobber_index) {
         Ok(..) => Ok(()),
         Err((string, err)) => Err(CliError::new(err_msg(string), err)),
     }
