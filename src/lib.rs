@@ -214,7 +214,7 @@ pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str, doc
     let doc_upload_branch = doc_upload.join(doc_path);
 
     if !doc_upload_branch.starts_with(doc_upload) {
-        return Err(("Path passed in `--pasth` is outside the intended `target/doc-upload` folder".to_string(), 1));
+        return Err(("Path passed in `--path` is outside the intended `target/doc-upload` folder".to_string(), 1));
     }
 
     if !doc_upload.exists() {
