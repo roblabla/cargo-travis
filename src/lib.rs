@@ -13,7 +13,7 @@ use std::fs;
 use badge::{Badge, BadgeOptions};
 use cargo::core::{Workspace};
 use cargo::ops::{CompileOptions};
-use cargo::util::{config::Config, process, CargoError, CargoErrorKind, CargoTestError, Test};
+use cargo::util::{config::Config, errors::ProcessError, process, CargoTestError, Test};
 use cargo::{CargoResult};
 
 pub struct CoverageOptions<'a> {
@@ -33,7 +33,7 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
     // RUSTFLAGS should be preserved as well (and should be put last, so that
     // they override any earlier repeats).
     let mut rustflags: std::ffi::OsString = "-C link-dead-code".into();
-    if options.compile_opts.release {
+    if options.compile_opts.build_config.release {
         // In release mode, ensure that there's debuginfo in some form so that
         // kcov has something to work with.
         rustflags.push(" -C debuginfo=2");
@@ -97,15 +97,23 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
         let result = cmd.exec();
 
         match result {
-            Err(CargoError(CargoErrorKind::ProcessErrorKind(e), .. )) => {
-                 errors.push(e);
-                if !options.no_fail_fast {
-                    return Ok(Some(CargoTestError::new(Test::UnitTest(kind.clone(), test.clone()), errors)))
-                }
-            }
             Err(e) => {
-                //This is an unexpected Cargo error rather than a test failure
-                return Err(e)
+                match e.downcast::<ProcessError>() {
+                    Ok(e) => {
+                        errors.push(e);
+                        if !options.no_fail_fast {
+                            return Ok(Some(CargoTestError::new(Test::UnitTest {
+                                kind: kind.clone(),
+                                name: test.clone(),
+                                pkg_name: pkg.name().to_string(),
+                            }, errors)))
+                        }
+                    }
+                    Err(e) => {
+                        //This is an unexpected Cargo error rather than a test failure
+                        return Err(e)
+                    }
+                }
             }
             Ok(()) => {}
         }
@@ -201,7 +209,7 @@ pub fn build_kcov<P: AsRef<Path>>(kcov_dir: P) -> PathBuf {
     kcov_built_path
 }
 
-pub fn doc_upload(message: &str, origin: &str, gh_pages: &str, doc_path: &str) -> Result<(), (String, i32)> {
+pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str, doc_path: &str, local_doc_path: &Path, clobber_index: bool) -> Result<(), (String, i32)> {
     let doc_upload = Path::new("target/doc-upload");
     let doc_upload_branch = doc_upload.join(doc_path);
 
@@ -247,7 +255,12 @@ pub fn doc_upload(message: &str, origin: &str, gh_pages: &str, doc_path: &str) -
         let dir = entry.unwrap();
         // Delete all files in directory, as we'll be copying in everything
         // Ignore index.html (at root) so a redirect page can be manually added
-        if dir.file_name() != OsString::from("index.html") {
+        // Unless user wants otherwise (--clobber-index)
+        // Or a new one was generated
+        if dir.file_name() != OsString::from("index.html")
+            || clobber_index
+            || local_doc_path.join("index.html").exists()
+        {
             let path = dir.path();
             println!("rm -r {}", path.to_string_lossy());
             fs::remove_dir_all(&path).ok();
@@ -279,7 +292,7 @@ pub fn doc_upload(message: &str, origin: &str, gh_pages: &str, doc_path: &str) -
         badge_status = version.clone();
     }
 
-    let doc = Path::new("target/doc");
+    let doc = local_doc_path;
     println!("cp {} {}", doc.to_string_lossy(), doc_upload_branch.to_string_lossy());
     let mut last_progress = 0;
 
