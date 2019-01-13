@@ -74,7 +74,7 @@ fn execute(options: Options, _: &Config) -> CliResult {
         return Ok(());
     }
 
-    let path = options.flag_path.unwrap_or(branch);
+    let path = options.flag_path.unwrap_or(branch.clone());
 
     // TODO FEAT: Allow passing origin string
     let token = options.flag_token.or(env::var("GH_TOKEN").ok());
