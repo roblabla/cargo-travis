@@ -180,6 +180,7 @@ Options:
     --message MESSAGE            The message to include in the commit
     --deploy BRANCH              Deploy to the given branch [default: gh-pages]
     --clobber-index              Delete `index.html` from repo
+    --target TRIPLE              Fetch the documentation for the target triple
 ```
 
 The branch used for doc pushes _may_ be protected, as force-push is not used. Documentation is maintained per-branch
@@ -188,7 +189,9 @@ too, like [docs.rs](https://docs.rs/about), that is located at `user.github.io/r
 master has documentation built, but you can build other branches' docs by passing any number of `--branch NAME`
 arguments (the presence of which _will_ disable the default master branch build). Documentation is deployed from
 `target/doc`, the default target for `rustdoc`, so make sure to run `cargo doc` before `cargo doc-upload`, and you can
-build up whatever directory structure you want in there if you want to document with alternate configurations.
+build up whatever directory structure you want in there if you want to document with alternate configurations. If you need
+the documentation from a non-default target, you can pass the target triple into `--target`, which will then fetch it from
+`target/TRIPLE/doc` instead.
 
 We suggest setting up a `index.html` in the root directory of documentation to redirect to the actual content.
 For this purpose we don't touch the root of the `gh-pages` branch (except to create the branch folders) and purposefully
