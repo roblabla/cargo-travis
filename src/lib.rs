@@ -209,9 +209,9 @@ pub fn build_kcov<P: AsRef<Path>>(kcov_dir: P) -> PathBuf {
     kcov_built_path
 }
 
-pub fn doc_upload(branch: &str, message: &str, origin: &str, gh_pages: &str, doc_path: &str, local_doc_path: &Path, clobber_index: bool) -> Result<(), (String, i32)> {
+pub fn doc_upload(message: &str, origin: &str, gh_pages: &str, doc_path: &str, local_doc_path: &Path, clobber_index: bool) -> Result<(), (String, i32)> {
     let doc_upload = Path::new("target/doc-upload");
-    let doc_upload_branch = doc_upload.join(doc_path);
+    let doc_upload_branch = doc_upload.join(doc_path).canonicalize().unwrap();
 
     if !doc_upload_branch.starts_with(doc_upload) {
         return Err(("Path passed in `--path` is outside the intended `target/doc-upload` folder".to_string(), 1));
