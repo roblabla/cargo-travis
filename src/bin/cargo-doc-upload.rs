@@ -30,6 +30,7 @@ Options:
                                  If unspecified, checks $GH_TOKEN then attempts to use SSH endpoint
     --message MESSAGE            The message to include in the commit
     --deploy BRANCH              Deploy to the given branch [default: gh-pages]
+    --path PATH                  Upload the documentation to the specified remote path [default: /$TRAVIS_BRANCH/]
     --clobber-index              Delete `index.html` from repo
     --target TRIPLE              Fetch the documentation for the target triple
 ";
@@ -41,6 +42,7 @@ pub struct Options {
     flag_token: Option<String>,
     flag_message: Option<String>,
     flag_deploy: Option<String>,
+    flag_path: Option<String>,
     flag_clobber_index: bool,
     flag_target: Option<String>,
 }
@@ -72,6 +74,8 @@ fn execute(options: Options, _: &Config) -> CliResult {
         return Ok(());
     }
 
+    let path = options.flag_path.unwrap_or_else(|| branch.clone());
+
     // TODO FEAT: Allow passing origin string
     let token = options.flag_token.or(env::var("GH_TOKEN").ok());
     let slug = env::var("TRAVIS_REPO_SLUG").expect("$TRAVIS_REPO_SLUG not set");
@@ -91,7 +95,7 @@ fn execute(options: Options, _: &Config) -> CliResult {
         .map(|v| Path::new("target").join(v).join("doc"))
         .unwrap_or(PathBuf::from("target/doc"));
 
-    match cargo_travis::doc_upload(&branch, &message, &origin, &gh_pages, &local_doc_path, clobber_index) {
+    match cargo_travis::doc_upload(&message, &origin, &gh_pages, &path, &local_doc_path, clobber_index) {
         Ok(..) => Ok(()),
         Err((string, err)) => Err(CliError::new(err_msg(string), err)),
     }
