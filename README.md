@@ -179,12 +179,14 @@ Options:
                                  If unspecified, checks $GH_TOKEN then attempts to use SSH endpoint
     --message MESSAGE            The message to include in the commit
     --deploy BRANCH              Deploy to the given branch [default: gh-pages]
+    --path PATH                  Upload the documentation to the specified remote path [default: /$TRAVIS_BRANCH/]
     --clobber-index              Delete `index.html` from repo
     --target TRIPLE              Fetch the documentation for the target triple
 ```
 
 The branch used for doc pushes _may_ be protected, as force-push is not used. Documentation is maintained per-branch
-in subdirectories, so `user.github.io/repo/master` is where the master branch's documentation lives. A badge is generated
+in subdirectories, so `user.github.io/repo/PATH` is where the master branch's documentation lives. `PATH` is by
+default the name of the branch, you can overwrite that behavior by passing a custom path into `--path`. A badge is generated
 too, like [docs.rs](https://docs.rs/about), that is located at `user.github.io/repo/master/badge.svg`. By default only
 master has documentation built, but you can build other branches' docs by passing any number of `--branch NAME`
 arguments (the presence of which _will_ disable the default master branch build). Documentation is deployed from
