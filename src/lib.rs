@@ -162,6 +162,9 @@ pub fn build_kcov<P: AsRef<Path>>(kcov_dir: P) -> PathBuf {
     let kcov_build_dir = kcov_master_dir.join("build");
     let kcov_built_path = kcov_build_dir.join("src/kcov");
 
+    // Make sure kcov_dir exists
+    fs::create_dir_all(kcov_dir).ok();
+
     // If we already built kcov
     if kcov_built_path.exists() {
         return kcov_built_path;
@@ -188,7 +191,7 @@ pub fn build_kcov<P: AsRef<Path>>(kcov_dir: P) -> PathBuf {
     );
 
     // Build kcov
-    fs::create_dir(&kcov_build_dir);
+    fs::create_dir_all(&kcov_build_dir).ok();
     println!("CMaking kcov");
     require_success(
         Command::new("cmake")
@@ -246,7 +249,7 @@ pub fn doc_upload(message: &str, origin: &str, gh_pages: &str, doc_path: &str, l
     }
 
     let doc_upload_branch = doc_upload.join(doc_path);
-    fs::create_dir(&doc_upload_branch).ok(); // Create dir if not exists
+    fs::create_dir_all(&doc_upload_branch).ok(); // Create dir if not exists
 
     // we can't canonicalize before we create the folder
     let doc_upload_branch = doc_upload_branch.canonicalize().unwrap();
