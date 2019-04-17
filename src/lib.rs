@@ -60,9 +60,9 @@ pub fn run_coverage(ws: &Workspace, options: &CoverageOptions, test_args: &[Stri
     //let x = &compilation.tests.map(run_single_coverage);
 
     for &(ref pkg, ref kind, ref test, ref exe) in &compilation.tests {
-        let to_display = match cargo::util::without_prefix(exe, &cwd) {
-            Some(path) => path,
-            None => &**exe
+        let to_display = match exe.strip_prefix(&cwd) {
+            Ok(path) => path,
+            Err(_) => &**exe,
         };
 
         // DLYB trick on OSX is here v

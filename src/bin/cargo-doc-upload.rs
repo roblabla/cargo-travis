@@ -102,7 +102,7 @@ fn execute(options: Options, _: &Config) -> CliResult {
 }
 
 fn main() {
-    env_logger::init().unwrap();
+    env_logger::init();
     let config = match Config::default() {
         Ok(cfg) => cfg,
         Err(e) => {
