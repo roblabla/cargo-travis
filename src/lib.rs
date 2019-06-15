@@ -188,7 +188,7 @@ pub fn build_kcov<P: AsRef<Path>>(kcov_dir: P) -> PathBuf {
     );
 
     // Build kcov
-    fs::create_dir(&kcov_build_dir);
+    fs::create_dir(&kcov_build_dir).expect(&format!("Failed to created dir {:?} for kcov", kcov_build_dir));
     println!("CMaking kcov");
     require_success(
         Command::new("cmake")
