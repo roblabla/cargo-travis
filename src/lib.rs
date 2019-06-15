@@ -7,7 +7,7 @@ extern crate serde_json;
 use std::env;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{self, Command};
+use std::process::{self, Command, Stdio};
 use std::ffi::{OsString};
 use std::fs;
 use badge::{Badge, BadgeOptions};
@@ -371,20 +371,40 @@ pub fn doc_upload(message: &str, origin: &str, gh_pages: &str, doc_path: &str, l
         .status().is_err()
     {
         println!("No changes to the documentation.");
-    }
-    else {
+    } else {
         // Push changes to GitHub
-        let status = Command::new("git")
+        let output = Command::new("git")
             .current_dir(doc_upload)
             .arg("push")
             .arg(origin)
             .arg(gh_pages)
-            .status()
+            .stdout(Stdio::piped())
+            .output()
             .unwrap();
-        if status.success() {
-            println!("Successfully updated documentation.");
-        } else {
-            println!("Documentation already up-to-date.");
+        match output.status.code() {
+            Some(code) => {
+                let output_str = String::from_utf8_lossy(&output.stdout).to_lowercase();
+                if code == 0 {
+                    // if git push is successful, this might be
+                    // either:
+                    // 1. updated after git push
+                    // 2. was already up to date - in that case git commit shows no changes
+                    println!("Successfully updated documentation.");
+                } else {
+                    // 128 is a catch-all error code used for failures in different functions
+                    let git_error_code = 128;
+                    if code == git_error_code {
+                        if output_str.contains("invalid username or password") {
+                            println!("Invalid username or password - make sure TravisCI user can push to {} branch on your repo", gh_pages);
+                        }
+                    } else {
+                        println!("{}", output_str);
+                    }
+                }
+            }
+            None => {
+                println!("Process terminated by signal and never returned an exit code");
+            }
         }
     }
 
