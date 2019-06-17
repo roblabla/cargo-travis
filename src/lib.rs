@@ -4,17 +4,17 @@ extern crate fs_extra;
 #[macro_use]
 extern crate serde_json;
 
+use badge::{Badge, BadgeOptions};
+use cargo::core::Workspace;
+use cargo::ops::CompileOptions;
+use cargo::util::{config::Config, errors::ProcessError, process, CargoTestError, Test};
+use cargo::CargoResult;
 use std::env;
+use std::ffi::OsString;
+use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{self, Command};
-use std::ffi::{OsString};
-use std::fs;
-use badge::{Badge, BadgeOptions};
-use cargo::core::{Workspace};
-use cargo::ops::{CompileOptions};
-use cargo::util::{config::Config, errors::ProcessError, process, CargoTestError, Test};
-use cargo::{CargoResult};
 
 pub struct CoverageOptions<'a> {
     pub compile_opts: CompileOptions<'a>,
@@ -188,7 +188,7 @@ pub fn build_kcov<P: AsRef<Path>>(kcov_dir: P) -> PathBuf {
     );
 
     // Build kcov
-    fs::create_dir(&kcov_build_dir);
+    fs::create_dir(&kcov_build_dir).expect(&format!("Failed to created dir {:?} for kcov", kcov_build_dir));
     println!("CMaking kcov");
     require_success(
         Command::new("cmake")
@@ -371,22 +371,17 @@ pub fn doc_upload(message: &str, origin: &str, gh_pages: &str, doc_path: &str, l
         .status().is_err()
     {
         println!("No changes to the documentation.");
-    }
-    else {
+    } else {
         // Push changes to GitHub
-        let status = Command::new("git")
-            .current_dir(doc_upload)
-            .arg("push")
-            .arg(origin)
-            .arg(gh_pages)
-            .status()
-            .unwrap();
-        if status.success() {
-            println!("Successfully updated documentation.");
-        } else {
-            println!("Documentation already up-to-date.");
-        }
+        require_success(
+            Command::new("git")
+                .current_dir(doc_upload)
+                .arg("push")
+                .arg(origin)
+                .arg(gh_pages)
+                .status()
+                .unwrap(),
+        );
     }
-
     result
 }
