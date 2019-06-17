@@ -2,3 +2,5 @@ target
 kcov/
 master.zip
 .tramp_history
+.vscode/
+.cargo/
