@@ -1,4 +1,3 @@
-extern crate cargo;
 extern crate cargo_travis;
 extern crate docopt;
 extern crate env_logger;
@@ -11,9 +10,8 @@ extern crate log;
 
 use std::env;
 use std::path::{Path, PathBuf};
-use cargo::util::{Config, CliResult, CliError};
 use docopt::Docopt;
-use failure::err_msg;
+use cargo_travis::CliError;
 
 // Note about --path: we don't use the proper default syntax because the default
 // value depends on an env variable.
@@ -49,7 +47,7 @@ pub struct Options {
     flag_target: Option<String>,
 }
 
-fn execute(options: Options, _: &Config) -> CliResult {
+fn execute(options: Options) -> Result<(), CliError> {
     debug!("executing; cmd=cargo-doc-upload; env={:?}",
            env::args().collect::<Vec<_>>());
 
@@ -97,22 +95,12 @@ fn execute(options: Options, _: &Config) -> CliResult {
         .map(|v| Path::new("target").join(v).join("doc"))
         .unwrap_or(PathBuf::from("target/doc"));
 
-    match cargo_travis::doc_upload(&message, &origin, &gh_pages, &path, &local_doc_path, clobber_index) {
-        Ok(..) => Ok(()),
-        Err((string, err)) => Err(CliError::new(err_msg(string), err)),
-    }
+    cargo_travis::doc_upload(&message, &origin, &gh_pages, &path, &local_doc_path, clobber_index)
 }
 
 fn main() {
     env_logger::init().unwrap();
-    let config = match Config::default() {
-        Ok(cfg) => cfg,
-        Err(e) => {
-            let mut shell = cargo::core::Shell::new();
-            cargo::exit_with_error(e.into(), &mut shell)
-        }
-    };
-    let result = (|| {
+    let result: Result<(), failure::Error> = (|| {
         let args: Vec<_> = try!(env::args_os()
             .map(|s| {
                 s.into_string().map_err(|s| {
@@ -121,19 +109,21 @@ fn main() {
             })
             .collect());
 
-        let docopt = Docopt::new(USAGE).unwrap()
-            .argv(args.iter().map(|s| &s[..]))
-            .help(true);
 
-        let flags = docopt.deserialize().map_err(|e| {
-            let code = if e.fatal() {1} else {0};
-            CliError::new(e.into(), code)
-        })?;
+        let flags = Docopt::new(USAGE)
+            .and_then(|d| d.argv(&args[..]).deserialize())
+            .unwrap_or_else(|e| e.exit());
 
-        execute(flags, &config)
+        execute(flags).map_err(|err| err.into())
     })();
     match result {
-        Err(e) => cargo::exit_with_error(e, &mut *config.shell()),
-        Ok(()) => {}
+        Ok(_) => {}
+        Err(err) => {
+            error!("Error: {}", err);
+            match err.downcast::<CliError>() {
+                Ok(err) => std::process::exit(err.code()),
+                Err(_) => std::process::exit(1),
+            }
+        }
     }
 }
