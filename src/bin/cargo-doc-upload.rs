@@ -15,6 +15,8 @@ use cargo::util::{Config, CliResult, CliError};
 use docopt::Docopt;
 use failure::err_msg;
 
+// Note about --path: we don't use the proper default syntax because the default
+// value depends on an env variable.
 pub const USAGE: &'static str = "
 Upload built rustdoc documentation to GitHub pages.
 
@@ -30,7 +32,7 @@ Options:
                                  If unspecified, checks $GH_TOKEN then attempts to use SSH endpoint
     --message MESSAGE            The message to include in the commit
     --deploy BRANCH              Deploy to the given branch [default: gh-pages]
-    --path PATH                  Upload the documentation to the specified remote path [default: /$TRAVIS_BRANCH/]
+    --path PATH                  Upload the documentation to the specified remote path (defaults to $TRAVIS_BRANCH/)
     --clobber-index              Delete `index.html` from repo
     --target TRIPLE              Fetch the documentation for the target triple
 ";

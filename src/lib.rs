@@ -246,7 +246,14 @@ pub fn doc_upload(message: &str, origin: &str, gh_pages: &str, doc_path: &str, l
     }
 
     let doc_upload_branch = doc_upload.join(doc_path);
-    fs::create_dir(&doc_upload_branch).ok(); // Create dir if not exists
+
+    println!("mkdir {}", doc_upload_branch.display());
+    let res = fs::create_dir(&doc_upload_branch);
+
+    match res.as_ref().map_err(|err| err.kind()) {
+        Err(std::io::ErrorKind::AlreadyExists) | Ok(()) => (),
+        Err(_) => panic!("{:?}", res),
+    }
 
     // we can't canonicalize before we create the folder
     let doc_upload_branch = doc_upload_branch.canonicalize().unwrap();
