@@ -1,4 +1,3 @@
-extern crate cargo;
 extern crate cargo_travis;
 extern crate docopt;
 extern crate env_logger;
@@ -10,13 +9,10 @@ extern crate serde_derive;
 extern crate log;
 
 use std::env;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use cargo_travis::{CoverageOptions, build_kcov};
-use cargo::core::{compiler::BuildConfig, Workspace};
-use cargo::util::{Config, CliResult, CliError};
-use cargo::ops::{Packages};
 use docopt::Docopt;
-use failure::err_msg;
+use cargo_travis::CliError;
 
 pub const USAGE: &'static str = "
 Record coverage of `cargo test`, this runs all binaries that `cargo test` runs
@@ -81,7 +77,7 @@ pub struct Options {
     flag_benches: bool,
     flag_all_targets: bool,
     flag_verbose: u32,
-    flag_quiet: Option<bool>,
+    flag_quiet: bool,
     flag_color: Option<String>,
     flag_release: bool,
     flag_no_fail_fast: bool,
@@ -97,7 +93,91 @@ pub struct Options {
     flag_kcov_build_location: String,
 }
 
-fn execute(options: Options, config: &mut Config) -> CliResult {
+impl Options {
+    fn into_cargo_args(&self) -> Vec<String> {
+        let mut compile_opts = Vec::new();
+        for feature in &self.flag_features {
+            compile_opts.push(format!("--features={}", feature));
+        }
+        if self.flag_all_features {
+            compile_opts.push("--all-features".into());
+        }
+        if let Some(s) = &self.flag_jobs {
+            compile_opts.push(format!("--jobs={}", s));
+        }
+        if let Some(s) = &self.flag_manifest_path {
+            compile_opts.push(format!("--manifest_path={}", s));
+        }
+        if self.flag_no_default_features {
+            compile_opts.push("--no_default_features".into());
+        }
+        for s in &self.flag_package {
+            compile_opts.push(format!("--package={}", s));
+        }
+        if let Some(s) = &self.flag_target {
+            compile_opts.push(format!("--target={}", s));
+        }
+        if self.flag_lib {
+            compile_opts.push("--lib".into());
+        }
+        for s in &self.flag_bin {
+            compile_opts.push(format!("--bin={}", s));
+        }
+        if self.flag_bins {
+            compile_opts.push("--bins".into());
+        }
+        for s in &self.flag_test {
+            compile_opts.push(format!("--test={}", s));
+        }
+        if self.flag_tests {
+            compile_opts.push("--tests".into());
+        }
+        for s in &self.flag_bench {
+            compile_opts.push(format!("--bench={}", s));
+        }
+        if self.flag_benches {
+            compile_opts.push("--benches".into());
+        }
+        if self.flag_all_targets {
+            compile_opts.push("--all_targets".into());
+        }
+        if self.flag_verbose != 0 {
+            compile_opts.push(format!("-{}", "v".repeat(self.flag_verbose as _)));
+        }
+        if self.flag_quiet {
+            compile_opts.push("--quiet".into());
+        }
+        if let Some(s) = &self.flag_color {
+            compile_opts.push(format!("--color={}", s));
+        }
+        if self.flag_release {
+            compile_opts.push("--release".into());
+        }
+        if self.flag_no_fail_fast {
+            compile_opts.push("--no_fail_fast".into());
+        }
+        if self.flag_frozen {
+            compile_opts.push("--frozen".into());
+        }
+        if self.flag_locked {
+            compile_opts.push("--locked".into());
+        }
+        if self.flag_all {
+            compile_opts.push("--all".into());
+        }
+        for s in &self.flag_exclude {
+            compile_opts.push(format!("--exclude={}", s));
+        }
+        for s in &self.flag_z {
+            compile_opts.push(format!("-Z{}", s));
+        }
+
+        compile_opts
+    }
+
+}
+
+fn execute(options: Options) -> Result<(), CliError> {
     debug!("executing; cmd=cargo-coveralls; args={:?}",
            env::args().collect::<Vec<_>>());
 
@@ -106,43 +186,8 @@ fn execute(options: Options, config: &mut Config) -> CliResult {
         return Ok(());
     }
 
-    let kcov_path = build_kcov(options.flag_kcov_build_location);
+    let kcov_path = build_kcov(&options.flag_kcov_build_location);
     // TODO: build_kcov() - Might be a good idea to consider linking kcov as a
-    // lib instead ?
-    try!(config.configure(options.flag_verbose,
-                          options.flag_quiet,
-                          &options.flag_color,
-                          options.flag_frozen,
-                          options.flag_locked,
-                          &None,
-                          &options.flag_z));
-
-    let ws = if let Some(path) = options.flag_manifest_path {
-        try!(Workspace::new(&Path::new(&path), config))
-    } else {
-        let root = try!(cargo::util::important_paths::find_root_manifest_for_wd(config.cwd()));
-        try!(Workspace::new(&root, config))
-    };
-
-    let empty = vec![];
-    let (mode, filter) = (cargo::core::compiler::CompileMode::Test, cargo::ops::CompileFilter::new(
-        options.flag_lib,
-        options.flag_bin,
-        options.flag_bins,
-        options.flag_test,
-        options.flag_tests,
-        empty,
-        false,
-        options.flag_bench,
-        options.flag_benches,
-        options.flag_all_targets
-    ));
-
-    let spec = try!(Packages::from_flags(options.flag_all, options.flag_exclude, options.flag_package));
-
-    // TODO: Force compilation target == host, kcov
-    let mut build_config = try!(BuildConfig::new(config, options.flag_jobs, &options.flag_target, mode));
-    build_config.release = options.flag_release;
 
     let job_id = std::env::var_os("TRAVIS_JOB_ID")
         .expect("Environment variable TRAVIS_JOB_ID not found. This should be run from Travis");
@@ -150,46 +195,25 @@ fn execute(options: Options, config: &mut Config) -> CliResult {
     let ops = CoverageOptions {
         merge_dir: Path::new("target/kcov"),
         merge_args: vec!["--coveralls-id".into(), job_id],
+        verbose: options.flag_verbose > 0,
         no_fail_fast: options.flag_no_fail_fast,
-        exclude_pattern: options.flag_exclude_pattern,
         kcov_path: &kcov_path,
-        compile_opts: cargo::ops::CompileOptions {
-            config: config,
-            build_config: build_config,
-            all_features: options.flag_all_features,
-            features: options.flag_features,
-            no_default_features: options.flag_no_default_features,
-            spec: spec,
-            filter: filter,
-            target_rustdoc_args: None,
-            target_rustc_args: None,
-            local_rustdoc_args: None,
-            export_dir: None,
-        },
+        exclude_pattern: options.flag_exclude_pattern.clone(),
+        release: options.flag_release,
+        manifest_path: options.flag_manifest_path.as_ref().map(PathBuf::from),
+        compile_opts: options.into_cargo_args(),
     };
 
-    let err = try!(cargo_travis::run_coverage(&ws, &ops, &options.arg_args));
+    let err = try!(cargo_travis::run_coverage(&ops, &options.arg_args));
 
     match err {
         None => Ok(()),
-        Some(err) => {
-            Err(match err.exit.as_ref().and_then(|e| e.code()) {
-                Some(i) => CliError::new(err_msg("test failed"), i),
-                None => CliError::new(err.into(), 101)
-            })
-        }
+        Some(err) => Err(err),
     }
 }
 
 fn main() {
     env_logger::init().unwrap();
-    let mut config = match Config::default() {
-        Ok(cfg) => cfg,
-        Err(e) => {
-             let mut shell = cargo::core::Shell::new();
-             cargo::exit_with_error(e.into(), &mut shell)
-        }
-    };
     let result = (|| {
         let args: Vec<_> = try!(env::args_os()
             .map(|s| {
@@ -199,19 +223,22 @@ fn main() {
             })
             .collect());
 
-        let docopt = Docopt::new(USAGE).unwrap()
-            .argv(args.iter().map(|s| &s[..]))
-            .help(true);
+        let flags = Docopt::new(USAGE)
+            .and_then(|d| d.argv(&args[..]).deserialize())
+            .unwrap_or_else(|e| e.exit());
 
-        let flags = docopt.deserialize().map_err(|e| {
-            let code = if e.fatal() {1} else {0};
-            CliError::new(e.into(), code)
-        })?;
-
-        execute(flags, &mut config)
+        execute(flags).map_err(failure::Error::from)
     })();
+
+
     match result {
-        Err(e) => cargo::exit_with_error(e, &mut *config.shell()),
-        Ok(()) => {}
+        Ok(_) => {}
+        Err(err) => {
+            error!("Error: {}", err);
+            match err.downcast::<CliError>() {
+                Ok(err) => std::process::exit(err.code()),
+                Err(_) => std::process::exit(1),
+            }
+        }
     }
 }
