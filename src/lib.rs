@@ -182,6 +182,7 @@ pub fn build_kcov<P: AsRef<Path>>(kcov_dir: P) -> PathBuf {
     require_success(
         Command::new("unzip")
             .current_dir(kcov_dir)
+            .arg("-o")
             .arg("master.zip")
             .status()
             .unwrap()
