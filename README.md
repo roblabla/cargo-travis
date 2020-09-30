@@ -1,4 +1,5 @@
 # Cargo Travis
+[![Build Status](https://travis-ci.org/roblabla/cargo-travis.svg?branch=master)](https://travis-ci.org/roblabla/cargo-travis)
 
 Record total test coverage across in-crate and external tests, and upload to [coveralls.io](https://coveralls.io).
 
